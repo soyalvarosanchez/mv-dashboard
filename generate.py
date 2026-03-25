@@ -45,9 +45,14 @@ def fetch_all(token):
         data    = r.json()
         content = data.get("content", [])
         regs.extend(content)
-        total_pages = data.get("totalPages", 1)
-        print(f"  page {page+1}/{total_pages} – {len(content)} records")
-        if page >= total_pages - 1 or len(content) == 0:
+        total_pages = data.get("totalPages", None)
+        print(f"  page {page+1}/{total_pages or '?'} – {len(content)} records (running total: {len(regs)})")
+        # Stop if: empty page, less than full page, or totalPages says we're done
+        if len(content) == 0:
+            break
+        if total_pages and page >= total_pages - 1:
+            break
+        if len(content) < 100:
             break
         page += 1
     print(f"  Fetched {len(regs)} total registrations across {page+1} pages")

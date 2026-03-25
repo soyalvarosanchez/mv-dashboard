@@ -47,9 +47,10 @@ def fetch_all(token):
         regs.extend(content)
         total_pages = data.get("totalPages", 1)
         print(f"  page {page+1}/{total_pages} – {len(content)} records")
-        if page >= total_pages - 1:
+        if page >= total_pages - 1 or len(content) == 0:
             break
         page += 1
+    print(f"  Fetched {len(regs)} total registrations across {page+1} pages")
     return regs
 
 # ── Date parsing ──────────────────────────────────────────────────────────────
@@ -67,6 +68,8 @@ def parse_date(s):
 def get_week(reg):
     """Return 'Week 1', 'Week 2', 'Both Weeks', or None."""
     for prop in reg.get("properties", []):
+        if not isinstance(prop, dict):
+            continue
         sys_id = (prop.get("systemFieldId") or "").upper()
         label  = (prop.get("label") or "").upper()
         if "WHEN_ARE_YOU_JOINING" in sys_id or "WHEN_ARE_YOU_JOINING" in label:

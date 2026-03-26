@@ -72,15 +72,35 @@ def parse_date(s):
 # ── Week assignment helper ────────────────────────────────────────────────────
 def get_week(reg):
     """Return 'Week 1', 'Week 2', 'Both Weeks', or None."""
-    for prop in reg.get("properties", []):
-        if not isinstance(prop, dict):
-            continue
-        sys_id = (prop.get("systemFieldId") or "").upper()
-        label  = (prop.get("label") or "").upper()
-        if "WHEN_ARE_YOU_JOINING" in sys_id or "WHEN_ARE_YOU_JOINING" in label:
-            val = (prop.get("value") or "").strip()
-            if val:
-                return val
+    props = reg.get("properties", {})
+    # Properties can be a dict (key→value) or a list
+    if isinstance(props, dict):
+        val = (props.get("when_are_you_joining") or "").strip()
+        if not val:
+            # Try alternate keys
+            for k, v in props.items():
+                if "when" in k.lower() and "joining" in k.lower():
+                    val = str(v).strip()
+                    break
+        if val:
+            val_lower = val.lower()
+            if "both" in val_lower or ("week 1" in val_lower and "week 2" in val_lower):
+                return "Both Weeks"
+            elif "week 1" in val_lower:
+                return "Week 1"
+            elif "week 2" in val_lower:
+                return "Week 2"
+            return val  # return raw value if doesn't match patterns
+    elif isinstance(props, list):
+        for prop in props:
+            if not isinstance(prop, dict):
+                continue
+            sys_id = (prop.get("systemFieldId") or "").upper()
+            label  = (prop.get("label") or "").upper()
+            if "WHEN_ARE_YOU_JOINING" in sys_id or "WHEN_ARE_YOU_JOINING" in label:
+                val = (prop.get("value") or "").strip()
+                if val:
+                    return val
     return None
 
 # ── Main compute ─────────────────────────────────────────────────────────────

@@ -199,7 +199,7 @@ def render_html(hero, kids, teens, vip, fc, reg, cap):
       </div>
       <div class="cap-numbers">
         <div class="cap-num-item"><div class="cap-num-val">{confirmed}</div><div class="cap-num-label">Confirmed</div></div>
-        <div class="cap-num-item"><div class="cap-num-val">{unassigned_count}</div><div class="cap-num-label">Unassigned</div></div>
+        <div class="cap-num-item"><div class="cap-num-val">{unassigned_count}</div><div class="cap-num-label">No Week Sel.</div></div>
         <div class="cap-num-item worst"><div class="cap-num-val">{worst}</div><div class="cap-num-label">Worst Case</div></div>
       </div>
       <div class="cap-capacity-note">Capacity: <strong>{CAPACITY}</strong> · {note_label} {overflow_html}</div>
@@ -214,7 +214,7 @@ def render_html(hero, kids, teens, vip, fc, reg, cap):
       <div class="cat-breakdown">
         <div class="item"><div class="item-val" data-target="{stats['w1']}">0</div><div class="item-label">Week 1</div></div>
         <div class="item"><div class="item-val" data-target="{stats['w2']}">0</div><div class="item-label">Week 2</div></div>
-        <div class="item"><div class="item-val" data-target="{stats['unassigned']}">0</div><div class="item-label">Unassigned</div></div>
+        <div class="item"><div class="item-val" data-target="{stats['unassigned']}">0</div><div class="item-label">No Week Selected</div></div>
       </div>
     </div>"""
 

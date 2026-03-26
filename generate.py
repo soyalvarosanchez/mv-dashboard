@@ -110,7 +110,7 @@ def compute(regs):
     d24   = now - timedelta(hours=24)
 
     valid     = [r for r in regs if r.get("validity","").lower() == "valid"]
-    refunded  = [r for r in regs if r.get("validity","").lower() == "refunded"]
+    refunded  = [r for r in regs if (r.get("paymentStatus") or "").lower() == "refunded"]
     unassigned_tickets = [r for r in valid if (r.get("formSubmissionStatus") or "").lower() == "unassigned"]
 
     def recent(lst, since):

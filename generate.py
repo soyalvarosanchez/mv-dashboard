@@ -426,9 +426,11 @@ if __name__ == "__main__":
     print("🧮 Computing metrics...")
     hero, kids, teens, vip, fc, reg, cap = compute(regs)
 
-    print("✍️  Writing index.html...")
+    print("✍️  Writing event-dashboards/mvu-2026/index.html...")
     html = render_html(hero, kids, teens, vip, fc, reg, cap)
-    with open("index.html", "w", encoding="utf-8") as f:
+    import os
+    os.makedirs("event-dashboards/mvu-2026", exist_ok=True)
+    with open("event-dashboards/mvu-2026/index.html", "w", encoding="utf-8") as f:
         f.write(html)
 
     print("✅ Done!")

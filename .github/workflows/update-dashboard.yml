@@ -1,9 +1,9 @@
-name: Update Dashboard
+name: Update Dashboards
 
 on:
   schedule:
-    - cron: '*/30 * * * *'   # every 30 minutes
-  workflow_dispatch:          # allow manual trigger from GitHub UI
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
 
 jobs:
   update:
@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Generate dashboard
+      - name: Generate MVU 2026 dashboard
         env:
           BIZZABO_CLIENT_ID:     ${{ secrets.BIZZABO_CLIENT_ID }}
           BIZZABO_CLIENT_SECRET: ${{ secrets.BIZZABO_CLIENT_SECRET }}
@@ -31,10 +31,19 @@ jobs:
           BIZZABO_EVENT_ID:      "754649"
         run: python generate.py
 
-      - name: Commit and push updated dashboard
+      - name: Generate Hub global dashboard
+        env:
+          BIZZABO_CLIENT_ID:     ${{ secrets.BIZZABO_CLIENT_ID }}
+          BIZZABO_CLIENT_SECRET: ${{ secrets.BIZZABO_CLIENT_SECRET }}
+        run: python generate_hub.py
+
+      - name: Copy shell as index.html
+        run: cp index.html.shell index.html
+
+      - name: Commit and push
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add index.html
-          git diff --staged --quiet || git commit -m "📊 Update dashboard $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git add -A
+          git diff --staged --quiet || git commit -m "Update dashboards $(date -u '+%Y-%m-%d %H:%M UTC')"
           git push

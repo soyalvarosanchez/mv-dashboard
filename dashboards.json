@@ -1,0 +1,11 @@
+{
+  "eventDashboards": [
+    {
+      "id": "mvu-2026",
+      "label": "Mindvalley U 2026",
+      "icon": "🎓",
+      "path": "event-dashboards/mvu-2026/index.html",
+      "description": "Tallinn, Estonia"
+    }
+  ]
+}

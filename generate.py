@@ -159,10 +159,30 @@ def compute(regs):
         "teens_w2": semaphore(teens["w2"], teens["unassigned"]),
     }
 
-    return hero, kids, teens, vip, fc, reg, cap
+    # ── promo code lists ──
+    def promo_list(promo_code, lst=valid):
+        results = []
+        for r in lst:
+            if (r.get("promoCode") or "").lower() != promo_code.lower():
+                continue
+            props = r.get("properties") or {}
+            email = props.get("email", "")
+            name = f'{props.get("firstName", "")} {props.get("lastName", "")}'.strip()
+            week = get_week(r)
+            week_label = week if week else "Unassigned"
+            is_mv = "@mindvalley" in email.lower()
+            results.append({"name": name, "email": email, "week": week_label, "is_mv": is_mv,
+                            "ticket": r.get("ticketName", "")})
+        return results
+
+    crew_list  = promo_list("MyCrewPass")
+    vol_list   = promo_list("Volunteer2Weeks")
+    hex_list   = promo_list("hexagon")
+
+    return hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list
 
 # ── HTML generation ───────────────────────────────────────────────────────────
-def render_html(hero, kids, teens, vip, fc, reg, cap):
+def render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list):
     now_str = datetime.now(tz=timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
 
     def cap_card(emoji, name, week_label, confirmed, unassigned_count, cap_tuple):
@@ -217,6 +237,30 @@ def render_html(hero, kids, teens, vip, fc, reg, cap):
         <div class="item"><div class="item-val" data-target="{stats['unassigned']}">0</div><div class="item-label">No Week Selected</div></div>
       </div>
     </div>"""
+
+    def promo_section(emoji, title, plist, flag_non_mv=False):
+        if not plist:
+            return f"""
+  <div class="section-label">{emoji} {title}</div>
+  <div class="promo-empty">No registrations yet</div>"""
+        rows = ""
+        for p in plist:
+            flag = ' <span class="flag-ext">external</span>' if (flag_non_mv and not p["is_mv"]) else ""
+            rows += f"""
+        <tr>
+          <td>{p["name"]}{flag}</td>
+          <td>{p["email"]}</td>
+          <td>{p["week"]}</td>
+        </tr>"""
+        return f"""
+  <div class="section-label">{emoji} {title} <span class="section-count">{len(plist)}</span></div>
+  <div class="promo-table-wrap">
+    <table class="promo-table">
+      <thead><tr><th>Name</th><th>Email</th><th>Weeks</th></tr></thead>
+      <tbody>{rows}
+      </tbody>
+    </table>
+  </div>"""
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -323,6 +367,14 @@ def render_html(hero, kids, teens, vip, fc, reg, cap):
   .risk-red .cap-num-item.worst .cap-num-val{{color:#f87171}}
   .cap-capacity-note{{text-align:center;font-size:.72rem;color:var(--text-dim);margin-top:10px}}
   .cap-capacity-note strong{{color:var(--gold)}}
+  .promo-table-wrap{{overflow-x:auto;margin-bottom:8px}}
+  .promo-table{{width:100%;border-collapse:collapse;font-size:.85rem}}
+  .promo-table th{{text-align:left;padding:8px 12px;color:var(--text-dim);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid rgba(255,255,255,.08)}}
+  .promo-table td{{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text)}}
+  .promo-table tr:hover td{{background:rgba(255,255,255,.03)}}
+  .promo-empty{{text-align:center;padding:24px;color:var(--text-dim);font-size:.9rem;background:var(--card);border-radius:16px;border:1px solid rgba(255,255,255,.06);margin-bottom:8px}}
+  .section-count{{display:inline-block;background:var(--purple);color:#fff;font-size:.75rem;padding:2px 8px;border-radius:10px;margin-left:6px;font-weight:700}}
+  .flag-ext{{display:inline-block;background:#f87171;color:#fff;font-size:.65rem;padding:1px 6px;border-radius:4px;margin-left:6px;font-weight:600;vertical-align:middle}}
   @media(max-width:600px){{
     header h1{{font-size:1.6rem}}.hero-value{{font-size:2rem}}.cat-value{{font-size:1.8rem}}
     .hero-grid,.cat-grid,.cap-grid{{grid-template-columns:1fr}}
@@ -385,6 +437,10 @@ def render_html(hero, kids, teens, vip, fc, reg, cap):
     {cat_card("💎", "First Class", fc)}
     {cat_card("🎫", "Regular (Adult)", reg)}
   </div>
+
+  {promo_section("🎫", "MyCrewPass", crew_list, flag_non_mv=True)}
+  {promo_section("🙋", "Volunteers", vol_list)}
+  {promo_section("⬡", "Hexagon", hex_list)}
 </div>
 
 <script>
@@ -424,10 +480,10 @@ if __name__ == "__main__":
     print(f"   Total records: {len(regs)}")
 
     print("🧮 Computing metrics...")
-    hero, kids, teens, vip, fc, reg, cap = compute(regs)
+    hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list = compute(regs)
 
     print("✍️  Writing event-dashboards/mvu-2026/index.html...")
-    html = render_html(hero, kids, teens, vip, fc, reg, cap)
+    html = render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list)
     import os
     os.makedirs("event-dashboards/mvu-2026", exist_ok=True)
     with open("event-dashboards/mvu-2026/index.html", "w", encoding="utf-8") as f:

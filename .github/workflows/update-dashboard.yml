@@ -31,12 +31,6 @@ jobs:
           BIZZABO_EVENT_ID:      "754649"
         run: python generate.py
 
-      - name: Generate Hub global dashboard
-        env:
-          BIZZABO_CLIENT_ID:     ${{ secrets.BIZZABO_CLIENT_ID }}
-          BIZZABO_CLIENT_SECRET: ${{ secrets.BIZZABO_CLIENT_SECRET }}
-        run: python generate_hub.py
-
       - name: Copy shell as index.html
         run: cp index.html.shell index.html
 

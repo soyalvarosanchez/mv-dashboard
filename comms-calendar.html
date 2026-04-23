@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MVU 2026 — Communications Calendar</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0b0a1a;
+  --bg-alt: #0f0e22;
+  --card: #14122a;
+  --card-hover: #1a1840;
+  --card-border: #2a2650;
+  --gold: #d4a843;
+  --gold-dim: #a07e30;
+  --purple: #7c3aed;
+  --purple-light: #a78bfa;
+  --purple-dim: #5b21b6;
+  --text: #e8e4f0;
+  --text-dim: #9a93b0;
+  --text-muted: #6b6580;
+  --green: #34d399;
+  --green-dim: #065f46;
+  --red: #f87171;
+  --orange: #fb923c;
+  --blue: #60a5fa;
+  --teal: #06b6d4;
+  --amber: #f59e0b;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --transition: 0.2s ease;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Floating orbs */
+.orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.15;
+  pointer-events: none;
+  z-index: 0;
+}
+.orb-1 { width: 500px; height: 500px; background: var(--purple); top: -100px; right: -100px; animation: float1 18s ease-in-out infinite; }
+.orb-2 { width: 400px; height: 400px; background: var(--gold); bottom: -50px; left: -100px; animation: float2 22s ease-in-out infinite; }
+.orb-3 { width: 300px; height: 300px; background: var(--teal); top: 50%; left: 50%; animation: float3 15s ease-in-out infinite; }
+
+@keyframes float1 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-60px, 40px); } }
+@keyframes float2 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(50px, -30px); } }
+@keyframes float3 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-40px, -50px); } }
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  margin-bottom: 36px;
+}
+.header h1 {
+  font-size: 2.4rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--gold), var(--purple-light));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+}
+.header .subtitle {
+  color: var(--text-dim);
+  font-size: 1rem;
+}
+.header .sync-badge {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 4px 14px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Source toggle */
+.source-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.source-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.source-badge.active { background: var(--purple-dim); color: var(--purple-light); }
+.source-badge.inactive { background: var(--card); color: var(--text-muted); }
+
+/* Filter bar */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 28px;
+  align-items: flex-start;
+}
+.filter-group {
+  flex: 1;
+  min-width: 200px;
+}
+.filter-group label {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.filter-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pill {
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  color: var(--text-dim);
+  transition: all var(--transition);
+  user-select: none;
+}
+.pill:hover { border-color: var(--purple); color: var(--text); }
+.pill.active { background: var(--purple-dim); border-color: var(--purple); color: var(--purple-light); }
+.pill.active-gold { background: rgba(212,168,67,0.15); border-color: var(--gold); color: var(--gold); }
+
+/* KPI Row */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  margin-bottom: 32px;
+}
+.kpi-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 18px;
+  text-align: center;
+  transition: all var(--transition);
+}
+.kpi-card:hover { transform: translateY(-2px); border-color: var(--purple); }
+.kpi-value {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.kpi-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 600;
+}
+.kpi-value.gold { color: var(--gold); }
+.kpi-value.purple { color: var(--purple-light); }
+.kpi-value.green { color: var(--green); }
+.kpi-value.orange { color: var(--orange); }
+.kpi-value.red { color: var(--red); }
+.kpi-value.blue { color: var(--blue); }
+
+/* View toggle */
+.view-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 24px;
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 4px;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+  border: 1px solid var(--card-border);
+}
+.view-btn {
+  padding: 8px 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: all var(--transition);
+}
+.view-btn.active { background: var(--purple); color: white; }
+.view-btn:hover:not(.active) { color: var(--text); }
+
+/* Section label */
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 28px 0 16px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--gold);
+  font-weight: 700;
+}
+.section-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, var(--gold-dim), transparent);
+}
+
+/* Calendar View */
+.calendar-container { }
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 8px;
+}
+.month-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.month-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.month-nav {
+  display: flex;
+  gap: 8px;
+}
+.month-nav button {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  color: var(--text-dim);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all var(--transition);
+}
+.month-nav button:hover { border-color: var(--purple); color: var(--text); }
+
+.day-header {
+  padding: 8px 4px;
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.day-cell {
+  min-height: 110px;
+  background: var(--bg-alt);
+  border-radius: 6px;
+  padding: 6px;
+  position: relative;
+}
+.day-cell.empty { background: transparent; opacity: 0.3; }
+.day-cell.today { border: 1px solid var(--gold-dim); }
+.day-number {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+.day-cell.today .day-number { color: var(--gold); }
+
+.email-chip {
+  display: block;
+  width: 100%;
+  padding: 4px 6px;
+  margin-bottom: 3px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: all var(--transition);
+  border-left: 3px solid;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.email-chip:hover { transform: scale(1.03); filter: brightness(1.2); }
+
+/* Audience colors for chips */
+.chip-all { background: rgba(124,58,237,0.15); border-color: var(--purple); color: var(--purple-light); }
+.chip-vip { background: rgba(212,168,67,0.15); border-color: var(--gold); color: var(--gold); }
+.chip-vipfc { background: linear-gradient(135deg, rgba(212,168,67,0.15), rgba(251,146,60,0.15)); border-color: var(--gold); color: var(--gold); }
+.chip-fc { background: rgba(251,146,60,0.12); border-color: var(--amber); color: var(--amber); }
+.chip-youth { background: rgba(52,211,153,0.12); border-color: var(--green); color: var(--green); }
+.chip-volunteer { background: rgba(6,182,212,0.12); border-color: var(--teal); color: var(--teal); }
+.chip-past { background: rgba(154,147,176,0.12); border-color: var(--text-muted); color: var(--text-dim); }
+.chip-other { background: rgba(96,165,250,0.12); border-color: var(--blue); color: var(--blue); }
+
+/* Timeline View */
+.timeline-container { display: none; }
+.timeline-container.active { display: block; }
+.calendar-container.active { display: block; }
+.calendar-container:not(.active) { display: none; }
+
+.swimlane {
+  margin-bottom: 20px;
+}
+.swimlane-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.swimlane-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.swimlane-track {
+  position: relative;
+  height: 44px;
+  background: var(--bg-alt);
+  border-radius: 8px;
+  overflow: visible;
+}
+.timeline-block {
+  position: absolute;
+  top: 6px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transition: all var(--transition);
+  border-left: 3px solid;
+}
+.timeline-block:hover { filter: brightness(1.3); transform: scaleY(1.15); z-index: 10; }
+
+.timeline-months {
+  display: flex;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--card-border);
+  padding-bottom: 6px;
+}
+.timeline-month-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* Today marker */
+.today-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--red);
+  z-index: 5;
+  opacity: 0.7;
+}
+.today-marker::after {
+  content: "TODAY";
+  position: absolute;
+  top: -16px;
+  left: -16px;
+  font-size: 0.55rem;
+  color: var(--red);
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+/* Modal */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 100;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  max-width: 800px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 0;
+}
+.modal-header {
+  padding: 24px 28px 16px;
+  border-bottom: 1px solid var(--card-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  background: var(--card);
+  z-index: 2;
+}
+.modal-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--gold);
+}
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+.modal-close:hover { color: var(--text); }
+.modal-meta {
+  padding: 16px 28px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.meta-tag {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: 1px solid;
+}
+.modal-body {
+  padding: 0 28px 28px;
+}
+.modal-section {
+  margin-bottom: 20px;
+}
+.modal-section-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--gold);
+  font-weight: 700;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.modal-section-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, var(--gold-dim), transparent);
+}
+.copy-block {
+  background: var(--bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  font-size: 0.82rem;
+  line-height: 1.7;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.ref-block {
+  background: rgba(212,168,67,0.05);
+  border: 1px solid rgba(212,168,67,0.2);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* Legend */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .container { padding: 16px 12px; }
+  .header h1 { font-size: 1.6rem; }
+  .kpi-row { grid-template-columns: repeat(3, 1fr); }
+  .day-cell { min-height: 80px; }
+  .email-chip { font-size: 0.58rem; padding: 3px 4px; }
+  .filters { flex-direction: column; }
+  .modal { max-height: 95vh; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--card-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--purple-dim); }
+
+/* Airtable status indicator */
+.airtable-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-left: 8px;
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.status-dot.connected { background: var(--green); }
+.status-dot.offline { background: var(--orange); }
+</style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <h1>MVU 2026 Communications Calendar</h1>
+    <div class="subtitle">Mindvalley University · July 20 – August 2, 2026 · Tallinn, Estonia</div>
+    <div class="sync-badge" id="syncBadge">
+      <span class="status-dot offline" id="statusDot"></span>
+      <span id="syncText">Offline mode · CSV data</span>
+    </div>
+  </div>
+
+  <!-- KPI Row -->
+  <div class="kpi-row" id="kpiRow"></div>
+
+  <!-- Filters -->
+  <div class="filters" id="filtersBar"></div>
+
+  <!-- Legend -->
+  <div class="legend" id="legend"></div>
+
+  <!-- View Toggle -->
+  <div class="view-toggle">
+    <button class="view-btn active" data-view="calendar">📅 Calendar</button>
+    <button class="view-btn" data-view="timeline">📊 Timeline</button>
+  </div>
+
+  <!-- Calendar View -->
+  <div class="calendar-container active" id="calendarView"></div>
+
+  <!-- Timeline View -->
+  <div class="timeline-container" id="timelineView"></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modalTitle"></div>
+        <div style="font-size:0.82rem;color:var(--text-dim);margin-top:4px" id="modalSubject"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-meta" id="modalMeta"></div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG: Set USE_AIRTABLE to true + add token when ready
+// ============================================================
+const CONFIG = {
+  USE_AIRTABLE: false,
+  AIRTABLE_BASE_ID: 'appiKFWOF90vH8Nxd',
+  AIRTABLE_TABLE_ID: 'tblSJqnlCCw7lrkOP',
+  AIRTABLE_TOKEN: '', // Add token when permissions are fixed
+  REFRESH_INTERVAL: 5 * 60 * 1000, // 5 minutes
+};
+
+// ============================================================
+// EMBEDDED DATA (fallback / offline mode)
+// ============================================================
+const EMBEDDED_DATA = [{"ID": "42", "Sequence": "Pre-Event Engagement", "Email_Name": "Christmas Email — by Vishen", "Audience": "All Valid Ticket Holders", "Subject_Line": "Dec 23: Christmas Email", "Proposed_Send_Date": "2025-12-23", "Day_of_Week": "Tuesday", "Status": "Sent", "CTA_Type": "Reply", "CTA_Description": "Reply to share what you're hoping for at MVU", "Notes": "Sent via Bizzabo by Vishen. Personal newsletter celebrating attendees joining MVU 2026. Asks attendees to reply with their intentions/hopes.", "Priority": "Medium", "Copy_2026": "Hi Álvaro,\n\nI just want to say this:\n\nYou've already given yourself one of the most powerful gifts of 2026.\n\nMindvalley U 2026 (a.k.a MVU 2026) is one of the biggest events we're creating next year, and you're part of it.\n\nThis year in Estonia, we're welcoming our highest attendance ever. And while I know you're excited, trust me, we're even more excited than you are.\n\nWhen you step into Mindvalley U coming summer, you'll feel something very different from a typical event.\n\nYou'll feel presence.\nYou'll feel a connection.\nYou'll feel what it means to be in a space where learning, growth, and real human connection actually coexist.\n\nThat's what makes Mindvalley U special.\n\nIt's not just the talks on stage though those are powerful. It's what happens between the sessions.\n\nThe conversations that go deep, fast.\nThe friendships that form naturally.\nThe moments with your family that don't feel rushed or distracted.\nThe kind of transformation that doesn't end when the music fades — it continues over dinner, in workshops, on long walks, and unexpected conversations.\n\nI've seen it happen year after year.\n\nPeople arrive curious. They leave transformed.\n\nNot because they tried harder. But because they finally showed up & slowed down enough to reconnect with themselves and with others.\n\nSo as you start thinking about 2026, forget the pressure of resolutions.\n\nInstead, ask yourself a better question:\n\nWhat kind of connections do I want to create this year?\n\nIn MVU 2026,\nWho do I want to meet?\nWho do I want to learn from?\nWhat kind of conversations do I want to be part of?\nWhat kind of network or even friendships do I want to build?\n\nAnd here's something I'd love you to do.\n\nHit reply to this email and tell us what you're hoping for at Mindvalley U.\n\nMaybe you want to find a business partner.\nMaybe you're open to love.\nMaybe you want a new best friend from a different country.\nMaybe you're looking for opportunity, clarity, or inspiration.\nOr maybe you just want a chance to have a real conversation with me.\n\nWhatever it is, tell us your heart's desire.\n\nOnce you're inside this tribe, you're part of us.\n\nAnd if there's a way we can help make something meaningful happen for you while you're there, we'll do our best to make it happen.\n\n💌 Coming Soon 💌\n\nStarting January, we'll begin sharing more details with you:\nSpeaker previews, behind-the-scenes moments, youth program highlights, and everything you need to start visualizing your summer in Tallinn.\n\nBut for now, just know this:\n\nYou're part of something special. And we can't wait to co-create it with you.\n\nHit reply to this email and tell us what you're hoping for at Mindvalley U.\n\nWith so much love and excitement,\nVishen", "Reference_2025_Copy": "[Vishen newsletter — first MVU 2026 communication after ticket purchase]", "Prep_Notification_Date": "2025-12-16"}, {"ID": "43", "Sequence": "Pre-Event Engagement", "Email_Name": "Why We Built Mindvalley U — by Vishen", "Audience": "All Valid Ticket Holders", "Subject_Line": "Jan 15: Why We Built Mindvalley U", "Proposed_Send_Date": "2026-01-16", "Day_of_Week": "Friday", "Status": "Sent", "CTA_Type": "Soft", "CTA_Description": "Encourages attendees to start booking flights/accommodation", "Notes": "Sent via Bizzabo by Vishen. Origin story of MVU. Storytelling email building anticipation for Tallinn 2026.", "Priority": "Medium", "Copy_2026": "Hi Álvaro,\n\nBack in 2016, I had a wild idea.\n\nWhat if education could be… fluid?\n\nWhat if instead of being bound to one campus, one curriculum, one way of learning — we could create a global, rotating campus where growth was immersive, cultural, deeply connected… and yes, even fun?\n\nI imagined a space where my family could grow alongside me.\nWhere my kids could learn the life skills traditional schools forgot.\nWhere friendships turned into soul tribes.\nAnd where love, business, ideas, and transformation could all happen over lunch — or a late-night walk in a new city.\n\nThat idea became Mindvalley University.\n\nNow lovingly called Mindvalley U. Or MVU — because this experience truly is about you.\n\nAnd what started as a one-time experiment in Barcelona… has now become one of the most beloved events in the Mindvalley world, spanning over a decade and touching thousands of lives from over 80 countries.\n\nSo why am I writing to you today?\nBecause this July, you're coming to Tallinn.\n\nThe birthplace of that idea.\n\nAnd I want you to know what you've stepped into.\n\nYou're not just attending an event.\nYou're becoming part of a living movement.\n\nYou'll learn from world-class mentors across every area of life — from AI and social media to relationships, parenting, embodiment, entrepreneurship, and inner healing.\n\nYou'll be surrounded by people who will become your collaborators, soul friends, and sometimes, your forever people.\n\nAnd your kids?\nThey'll be immersed in our amazing Youth Programs — often cited as the highlight of MVU both for young and adult attendees — where they're not just taught, but seen, empowered, and inspired.\n\nThis is where transformation becomes real.\nNot through content, but through connection.\n\nWhether you're coming for the first time, or are one of the beautiful souls who returns year after year, just know…\n\nYou're part of something extraordinary.\n\nWe'll see you in Tallinn.\n\nAnd oh — if you haven't started looking at flights or accommodation yet, now's a good time to begin.\n\nWith love,\nVishen", "Reference_2025_Copy": "[Vishen newsletter — origin story of MVU, building emotional connection to Tallinn]", "Prep_Notification_Date": "2026-01-09"}, {"ID": "44", "Sequence": "Pre-Event Engagement", "Email_Name": "The Last Real Thing — by Vishen", "Audience": "All Valid Ticket Holders", "Subject_Line": "Jan 23: The Last Real Thing", "Proposed_Send_Date": "2026-01-23", "Day_of_Week": "Friday", "Status": "Sent", "CTA_Type": "Link", "CTA_Description": "Invite a friend link (early-bird offer)", "Notes": "Sent via Bizzabo by Vishen. Personal vulnerable email about turning 50, AI world context, friend-invitation upsell, and Tribe Stage teaser.", "Priority": "Medium", "Copy_2026": "Hi Álvaro,\n\nIn my last newsletter, I shared something raw.\n\nI turned 50 this month. And with it came a decision that now shapes everything I do: I want to live 100 lives before I die.\n\nOne week at a time.\nOne place at a time.\nOne version of myself at a time.\n\nThat's how I've started showing up.\n\nRight now, I'm in Sevilla, Spain, leading the first-ever in-person Manifesting Coaching Certification with Regan Hillyer and 50 incredible humans.\n\nWe're not just \"doing a program.\"\n\nWe're learning together. Laughing over late dinners. Walking through ancient streets.\nAnd going deep with the program and with each other.\n\nAnd it reminded me that, this how MVU feels for all our attendees\n\n🌍 Why Mindvalley U Exists in an AI World\n\nAs the world races ahead with AI, automation, and digital everything…I feel a quiet urgency.\n\nBecause the more digital life becomes, the more valuable it is to gather as humans.\n\nTo sit face-to-face.\nTo share a conversation that meanders into the night.\nTo grow alongside others who are alive, awake, and building extraordinary lives — just like you.\n\nThat's what MVU is about: A living, breathing learning experience. And this year, it's going to be the biggest one yet.\n\nAt Mindvalley U 2026 in Tallinn, you'll find yourself surrounded by:\n\nEntrepreneurs who've built global businesses — and want more meaning, not just metrics\nParents and educators raising conscious kids\nHealers, artists, futurists, creatives\nAnd yes — some of the kindest, most brilliant minds you'll ever meet\n\nMany of these people arrive solo. But they don't leave that way.\n\nSo if you're coming alone, I want to ask you something:\n\n👉 Bring someone with you.\n\nWhether it's a friend, partner, colleague, or your kids— MVU becomes exponentially more powerful when it's shared.\n\nSend them this email or invite them to grab their ticket here:\n\nClick here to invite a friend to MVU (our early-bird offer ends this month)\n\n🎤 A Heads-Up About Something Exciting\nEach year at MVU, we open something called the Mindvalley Tribe Stage — a platform for you to teach, speak, and lead.\n\nWe'll be announcing applications for 2026 soon, but here's what you need to know now:\n\nTo apply, you'll need to have a 2-week ticket, as your talk could happen on any day of MVU\nYou'll have the chance to share your voice, wisdom, and ideas with an audience like no other\nWhether you're an educator, coach, entrepreneur, healer — this could be your moment to give back in a powerful way\n\nStay tuned for updates. But if this sparks something in you — start thinking now.\n\nWhat would you share? What lights you up? What's your message?\n\nThis could be your stage.\n\nIn 2026, MVU returns to Tallinn, Estonia — the birthplace of this idea.\n\nA city where medieval walls meet modern tech.\nWhere history and future live side by side.\nAnd where, this July, you'll reclaim one of the most precious experiences of our time:\n\n✨ Connection.\n✨ Belonging.\n✨ Aliveness.\n\nLet's live one of our 100 lives together this July.\n\nWith love,\nVishen", "Reference_2025_Copy": "[Vishen newsletter — vulnerable storytelling, friend-invite upsell, Tribe Stage teaser]", "Prep_Notification_Date": "2026-01-16"}, {"ID": "1", "Sequence": "Pre-Event Engagement", "Email_Name": "Partnership Announcement (Youth)", "Audience": "Youth Programs Ticket Holders", "Subject_Line": "The Future of Education Is Here — And Your Child Gets To Be Part of It! 🎒", "Proposed_Send_Date": "2026-02-16", "Day_of_Week": "Monday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Link to partner blog article", "Notes": "Announce educational partner for Youth Programs. Adapt to Tallinn context.", "Priority": "Medium", "Copy_2026": "Hey [First Name],\n\nExciting news — Mindvalley University 2026 is about to get even more extraordinary for your little ones.\n\nFor another year, Mindvalley is partnering with Learnlife, the pioneering school that's redefining education worldwide. Forget memorization — Learnlife's approach is all about self-directed learning, real-world skills, and igniting a passion for lifelong growth.\n\nTheir model is already transforming schools across Europe, the Americas, and the UAE — and now, we're bringing it once again to our Mindvalley University Youth Programs in the beautiful city of Tallinn. 🇪🇪\n\nImagine your child diving into hands-on, curiosity-driven workshops where they explore what truly excites them — whether it's entrepreneurship, creative problem-solving, or future-ready skills. They'll connect with like-minded peers, learn from inspiring mentors, and thrive in an environment that fosters independence, innovation, and confidence.\n\nWe can't wait to welcome your family to Tallinn this summer — where, alongside Learnlife, we'll create an unforgettable experience that empowers the next generation of changemakers.\n\nWant to learn more about the future of education and why we're so excited about Learnlife?\n\n👉 Read this article on our Mindvalley Blog here.\n\nStay tuned — more exciting details coming your way soon!\n\nWith excitement and gratitude,\nThe Mindvalley Events Team", "Reference_2025_Copy": "[Mar 3, 2025 — Partnership Announcement]\nAudience: Youth Programs Valid Ticket Holders\nSubject: The Future of Education Is Here—And Your Child Gets To Be Part of It! 🎒\nKey content: Announced Learnlife partnership (second year). Highlighted self-directed learning, real-world skills. Mentioned Learnlife's global presence. Invited families to Amsterdam. Linked to Mindvalley Blog article about Learnlife. Signed by Mindvalley Events Team (originally by Gigi Marquez Suarez).", "Prep_Notification_Date": "2026-02-09"}, {"ID": "34", "Sequence": "Pre-Event Engagement", "Email_Name": "Reminder To Assign Tickets", "Audience": "Buyers with Unassigned Tickets", "Subject_Line": "Reminder To Assign Tickets", "Proposed_Send_Date": "2026-02-24", "Day_of_Week": "Tuesday", "Status": "Sent", "CTA_Type": "Link", "CTA_Description": "Assign tickets link", "Notes": "Sent via Bizzabo. Reminder for buyers who haven't assigned their tickets yet.", "Priority": "High", "Copy_2026": "Hi Álvaro,\n\nWe're reaching out with a quick reminder before Mindvalley U 2026.\n\nYou've purchased multiple tickets, but they haven't been assigned yet. To ensure a smooth check-in experience, please assign each ticket to the appropriate attendee as soon as possible.\n\n❗Tickets must be assigned to a named attendee to be considered fully registered.\n\nHow to Assign Your Tickets:\n\n1. Click the \"Manage your Registration\" button below.\n2. Transfer the ticket to the attendee so they can complete their registration.\n   ○ Don't forget to register yourself if you are attending!\n3. If transferring the ticket, click \"Transfer Registration\", then enter the attendee's first name, last name, and email. They'll receive a link to complete their registration.\n4. If you're filling out the registration yourself, click \"Complete Registration\" and enter the necessary details.\n\nWith so much love and excitement,\n\nThe Mindvalley Events team", "Reference_2025_Copy": "[No 2025 reference — operational email]", "Prep_Notification_Date": "2026-02-17"}, {"ID": "2", "Sequence": "Pre-Event Engagement", "Email_Name": "About Tallinn", "Audience": "All Valid Ticket Holders", "Subject_Line": "Why Tallinn Is the Perfect City for Your Next Big Transformation 🇪🇪", "Proposed_Send_Date": "2026-02-27", "Day_of_Week": "Friday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Link to ticket page", "Notes": "Highlight Tallinn as destination. Replace all Amsterdam references.", "Priority": "High", "Copy_2026": "Hey [First Name],\n\nClose your eyes for a second and picture this...\n\nYou're walking through the cobblestone streets of Tallinn's medieval Old Town, past towers that have stood for centuries, as the golden light of a Baltic summer evening wraps around you. The air carries the hum of cafes, the distant sound of live music, and a quiet energy that feels like possibility itself.\n\nNow imagine that instead of just visiting, you're here for something extraordinary — a two-week deep dive into your greatest potential.\n\nThis is Mindvalley University 2026, and it takes place from July 20 to August 2 in the heart of Tallinn, Estonia.\n\nFor two unforgettable weeks, Tallinn becomes your playground for transformation.\n\nHere's why you need to be there.\n\n🏰 Learn, Explore, and Grow in One of Europe's Best-Kept Secrets\n\nTallinn isn't just another event location — it's an experience in itself.\n\nA city where medieval meets digital — Tallinn is one of the most digitally advanced cities on Earth, yet its Old Town is a UNESCO World Heritage Site. It's where ancient wisdom and innovation coexist — the perfect setting to expand your mind and vision for the future.\n\nA classroom without walls — One moment, you're in a masterclass with a world-class teacher. Next, you're exploring the winding alleys of the Old Town or gazing across the Baltic Sea from Pirita Beach. This isn't just learning — it's a full-body immersion into new ideas.\n\nFrom sunrise meditations to unforgettable nights — Whether you're diving deep into a talk on human potential, networking with brilliant minds over dinner, or dancing under the white nights of a Baltic summer, every moment at MVU is designed for transformation.\n\n🌟 Not a Conference. Not a Retreat. A Total Life Upgrade.\n\nChoose Your Own Adventure: Stay for a weekend, a week, or the full two-week experience.\nLearn from the Best: Our speaker lineup is filled with global thought leaders in business, relationships, biohacking, spirituality, and more.\nJoin a Global Tribe: You'll connect with entrepreneurs, creatives, changemakers, and seekers from over 60 countries.\n\n👨‍👩‍👧‍👦 The Only Event of Its Kind That Welcomes Your Family\n\nIf you're a parent, this is your chance to share the journey of personal growth with your kids. A full curriculum for Kids & Teens, global experiences, and friendships that last a lifetime.\n\nReady to experience the most transformational summer of your life?\n\n👉 Click here to get your ticket\n\nSee you in Tallinn,\nThe Mindvalley Events Team\n\nP.S. Every year, MVU sells out. If you're feeling the call, don't wait. Tallinn is waiting for you. ✈️", "Reference_2025_Copy": "[Mar 13, 2025 — About Amsterdam]\nAudience: MV InfoMailer Database\nSubject: Why Amsterdam is the Perfect City for Your Next Big Transformation\nKey content: Painted a vivid picture of Amsterdam (canals, bridges, sunsets). Positioned the city as part of the transformation experience. Highlighted: creativity hub, classroom without walls, sunrise-to-nightlife experience. Family-friendly angle with Kids & Teens programs. Urgency: early pricing expiring, limited spots. Signed by Mindvalley Events.", "Prep_Notification_Date": "2026-02-20"}, {"ID": "35", "Sequence": "Pre-Event Engagement", "Email_Name": "Youth Program - Preference Form To Parents", "Audience": "Parents with Youth Program Tickets", "Subject_Line": "Youth Program - Preference Form To Parents", "Proposed_Send_Date": "2026-02-28", "Day_of_Week": "Saturday", "Status": "Sent", "CTA_Type": "Link", "CTA_Description": "Preference form link", "Notes": "Sent via Bizzabo. Parents fill out preference form for youth programs.", "Priority": "High", "Copy_2026": "Hi Álvaro,\n\nTo confirm your child's place in the Mindvalley U 2026 Youth Program, please complete the Youth Programs Preference Survey.\n\nOne form per child.\n\nWe use your answers to plan pick-up permissions, English support, allergies/dietary needs, learning accommodations, and how to best engage your child. We'll also ask about photo/video permission for daily parent updates (Learnlife + Mindvalley).\n\nSurvey link: here.\n\nThis survey is necessary to confirm a place in the program. If we don't receive the survey by April, 1st, we may need to release the spot to a waitlisted family.\n\nThank you for helping us awaken their greatness, safely and smoothly.\n\nMindvalley Youth Programs Team.", "Reference_2025_Copy": "[No 2025 reference — operational email]", "Prep_Notification_Date": "2026-02-21"}, {"ID": "36", "Sequence": "Pre-Event Engagement", "Email_Name": "Second Reminder To Assign Tickets - March 5th", "Audience": "Buyers with Unassigned Tickets", "Subject_Line": "Second Reminder To Assign Tickets - March, 5th", "Proposed_Send_Date": "2026-03-05", "Day_of_Week": "Thursday", "Status": "Sent", "CTA_Type": "Link", "CTA_Description": "Assign tickets link", "Notes": "Sent via Bizzabo. Second reminder for unassigned tickets.", "Priority": "High", "Copy_2026": "Hey Álvaro,\n\nA quick (but important) heads-up: one of your Mindvalley U 2026 ticket(s) is currently at risk because it hasn't been assigned to a named ticket holder yet.\n\nHere's why this matters: your registration is only considered complete once every ticket has a ticket holder assigned.\n\nPlease take a moment to fix this now:\n\nAssign your ticket holder:\n\n1) Click \"Manage your Registration\" below.\n2) For the unassigned ticket, choose one option:\n      - Transfer Registration: enter the attendee's first name, last name, and email. They'll receive a link to complete registration.\n      - Complete Registration: fill out the attendee details yourself.\n3) If you're attending, make sure one ticket is assigned to you.\n\nWe can't wait to see you in Tallinn — it's going to be unforgettable.\n\nWith love,\n\nThe Mindvalley Events team", "Reference_2025_Copy": "[No 2025 reference — operational email]", "Prep_Notification_Date": "2026-02-26"}, {"ID": "37", "Sequence": "Pre-Event Engagement", "Email_Name": "Third Reminder To Assign Tickets - March 16th", "Audience": "Buyers with Unassigned Tickets", "Subject_Line": "Third Reminder To Assign Tickets - March, 16th", "Proposed_Send_Date": "2026-03-16", "Day_of_Week": "Monday", "Status": "Sent", "CTA_Type": "Link", "CTA_Description": "Assign tickets link", "Notes": "Sent via Bizzabo. Third reminder for unassigned tickets.", "Priority": "Medium", "Copy_2026": "Hey Álvaro,\n\nA quick (but important) heads-up: one of your Mindvalley U 2026 ticket(s) is currently at risk because it hasn't been assigned to a named ticket holder yet.\n\nHere's why this matters: your registration is only considered complete once every ticket has a ticket holder assigned.\n\nPlease take a moment to fix this now:\n\nAssign your ticket holder:\n\n1) Click \"Manage your Registration\" below.\n2) For the unassigned ticket, choose one option:\n      - Transfer Registration: enter the attendee's first name, last name, and email. They'll receive a link to complete registration.\n      - Complete Registration: fill out the attendee details yourself.\n3) If you're attending, make sure one ticket is assigned to you.\n\nWe can't wait to see you in Tallinn — it's going to be unforgettable.\n\nWith love,\n\nThe Mindvalley Events team", "Reference_2025_Copy": "[No 2025 reference — operational email]", "Prep_Notification_Date": "2026-03-09"}, {"ID": "3", "Sequence": "Pre-Event Engagement", "Email_Name": "Attendee Guide", "Audience": "All Valid Ticket Holders", "Subject_Line": "🚀 Your Ultimate Guide to Mindvalley University 2026 is HERE!", "Proposed_Send_Date": "2026-03-23", "Day_of_Week": "Monday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Link to Attendee Guide portal", "Notes": "Tallinn-specific logistics, transport, restaurants, family activities, weather.", "Priority": "High", "Copy_2026": "Hey [First Name],\n\nReady to dive into two unforgettable weeks in Tallinn? 🌍✨\n\nYour official Mindvalley University 2026 Attendee Guide is live — and trust us, you'll want to save, star, and bookmark this one.\n\nIt's your go-to resource for all things MVU, and since we're constantly adding new info as the event approaches, keep checking back for the latest updates!\n\nInside, you'll find everything you need to feel like a local and flow like a pro:\n\n🏰 Full scoop on the Hub venue in Tallinn\n🎉 The weekly parties + socials (yes, kids are invited too!)\n🧒 Top things to do in Tallinn with your little ones\n🛟 Emergency contacts + local pharmacy tips\n🍽️ Family-friendly restaurants & must-visit spots\n🚊 Getting around Tallinn — trams, e-scooters, bikes & more\n\n👉 Click here to explore your guide now\n\nThis is more than just a guide — it's your backstage pass to all the magic we're co-creating this summer. ✨\n\nSo grab your guide, mark your must-dos, and get ready to meet the tribe in the heart of Tallinn!\n\nWith love,\nMindvalley U Team", "Reference_2025_Copy": "[Apr 7, 2025 — Attendee Guide]\nAudience: All Valid Ticket Holders\nSubject: 🚀Your Ultimate Guide to Mindvalley University 2025 is HERE!\nKey content: Launched Attendee Guide portal. Covered: venue (Beurs van Berlage), parties, kids activities in Amsterdam, emergency contacts, restaurants, transport (bike, boat, tram). Encouraged bookmarking for continuous updates. Signed by Mindvalley Team.", "Prep_Notification_Date": "2026-03-16"}, {"ID": "39", "Sequence": "Pre-Event Engagement", "Email_Name": "Fourth Reminder To Assign Tickets - March 26th", "Audience": "Buyers with Unassigned Tickets", "Subject_Line": "Fourth Reminder To Assign Tickets - March, 26th", "Proposed_Send_Date": "2026-03-26", "Day_of_Week": "Thursday", "Status": "Sent", "CTA_Type": "Link", "CTA_Description": "Assign tickets link", "Notes": "Sent via Bizzabo. Fourth reminder for unassigned tickets.", "Priority": "Medium", "Copy_2026": "Hey Álvaro,\n\nThis is important — and time-sensitive.\n\nOne of your Mindvalley U 2026 tickets is currently at risk because it's still unassigned (no named ticket holder). And until every ticket has a name attached, the registration isn't complete.\n\nPlease assign the ticket holder now (it takes 60 seconds):\n\nClick \"Manage your Registration\" below.\nFind the unassigned ticket, then choose one:\n\nTransfer Registration: add the attendee's first name, last name, and email (they'll get a link to complete registration).\nComplete Registration: enter the attendee details yourself.\nIf you're attending, make sure one ticket is assigned to you.\n\nWe'd hate for something this small to affect your MVU experience. Assign it now and you're all set.\n\nWith love,\nThe Mindvalley Events Team.", "Reference_2025_Copy": "[No 2025 reference — operational email]", "Prep_Notification_Date": "2026-03-19"}, {"ID": "4", "Sequence": "Pre-Event Engagement", "Email_Name": "Volunteer Reminders", "Audience": "General Volunteer Database", "Subject_Line": "Last Call to Volunteer at Mindvalley University 2026 in Tallinn! 🌍✨", "Proposed_Send_Date": "2026-03-27", "Day_of_Week": "Friday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Volunteer application link", "Notes": "Open volunteer applications. Update city and dates.", "Priority": "Medium", "Copy_2026": "Hey [First Name],\n\nIf you've been thinking about volunteering at a Mindvalley event... this is your moment. 🌟\n\nWe're currently inviting passionate, high-vibe humans to apply as volunteers for Mindvalley University 2026 — happening in the stunning city of Tallinn, Estonia from July 20 to August 2, 2026.\n\nVolunteering at Mindvalley University isn't just about helping run an event. It's about becoming part of a movement. You'll connect deeply with the global Mindvalley community, contribute your energy to something truly transformational, and walk away with memories (and friendships) that last a lifetime.\n\n👉 Apply to be a volunteer for Mindvalley University 2026 here: [Insert MVU Volunteer Application Link]\n\nLet's co-create something extraordinary,\nMindvalley Events Team", "Reference_2025_Copy": "[Apr 11, 2025 — Volunteer Reminders]\nAudience: General Volunteer Database\nSubject: Last Call to Volunteer at Mindvalley University 2025 + Manifesting Summit in LA\nKey content: Volunteer call for MVU Amsterdam Aug 4-17. Emphasized: movement, deep connection, transformation, lifetime friendships. Also included bonus opportunity for Manifesting Summit in LA (May 17-18). Signed by Mindvalley Events Team.", "Prep_Notification_Date": "2026-03-20"}, {"ID": "40", "Sequence": "Pre-Event Engagement", "Email_Name": "Tribe Stage Application", "Audience": "All Valid Ticket Holders (No Youth Program)", "Subject_Line": "Tribe Stage Application", "Proposed_Send_Date": "2026-04-06", "Day_of_Week": "Monday", "Status": "Sent", "CTA_Type": "Link", "CTA_Description": "Tribe Stage application form", "Notes": "Sent via Bizzabo. Tribe Stage applications opened. NOTE: This overlaps with planned email #5 (Tribe Speaker Application on Apr 20) — may want to remove or repurpose #5.", "Priority": "High", "Copy_2026": "Hey Álvaro,\n\nApplications for the Tribe Stage at Mindvalley University 2026 are officially open. And this is your chance to become part of the Mindvalley U experience in a bigger way.\n\nThe Tribe Stage isn't just a place to host a session. It's where fresh voices rise, powerful ideas are shared, and members of our community step into leadership.\n\nIf you've felt the spark to teach, guide, move, awaken, or inspire others—this may be the invitation you've been waiting for.\n\n🎤 What is the Tribe Stage?\n\nThe Tribe Stage is a space for Mindvalley Members to lead community sessions during MVU. From transformational workshops and embodiment practices to guided meditations, conscious conversations, and bold new ideas—this is where your wisdom gets to meet the right audience.\n\nWe're looking for sessions that are authentic, engaging, and deeply aligned with the Mindvalley spirit.\n\n✨ This is for you if:\n\n✅ You have a valid MVU 2026 ticket\n✅ You feel ready to contribute from your experience, heart, and voice\n✅ You're excited to create impact within the Mindvalley community\n\n👉 Apply for the Tribe Stage here:\nClick here to submit your application\n\nSpaces are limited, and every application will be carefully reviewed.\n\nFor some, the Tribe Stage becomes more than a single session. It becomes the beginning of something bigger—a new level of visibility, contribution, and expression within the Mindvalley ecosystem.\n\nSo if something in you is saying yes… trust it.\n\nWith love and excitement,\nThe Mindvalley Events Team.", "Reference_2025_Copy": "[See email #5 for planned 2026 copy and 2025 reference]", "Prep_Notification_Date": "2026-03-30"}, {"ID": "41", "Sequence": "Pre-Event Engagement", "Email_Name": "Fifth Reminder To Unassigned Tickets - April 14th", "Audience": "Buyers with Unassigned Tickets", "Subject_Line": "Fifth reminder to unassigned tickets (April 9th)", "Proposed_Send_Date": "2026-04-14", "Day_of_Week": "Tuesday", "Status": "Sent", "CTA_Type": "Link", "CTA_Description": "Assign tickets link", "Notes": "Sent via Bizzabo. Originally scheduled April 9th, actually sent April 14th.", "Priority": "Medium", "Copy_2026": "Hey Álvaro,\n\nThis is serious — please read carefully.\n\nAt least one of your Mindvalley U 2026 tickets is still unassigned (no named ticket holder). If you don't take immediate action, this ticket will be canceled.\n\nTo keep the ticket active, you must assign it to a specific attendee. Until every ticket has a name attached, registration isn't complete — and unassigned tickets can't be honored at check-in.\n\nFix this right now (60 seconds):\n\nClick \"Manage your Registration\" below.\nFind the unassigned ticket, then choose one:\n\nTransfer Registration: enter the attendee's first name, last name, and email (they'll receive a link to complete registration).\nComplete Registration: enter the attendee details yourself.\n\nIf you're attending, make sure one ticket is assigned to you.\n\nDon't risk losing this spot. Assign the ticket now and you're fully set.\n\nWith love,\nThe Mindvalley Events Team", "Reference_2025_Copy": "[No 2025 reference — operational email]", "Prep_Notification_Date": "2026-04-07"}, {"ID": "5", "Sequence": "Pre-Event Engagement", "Email_Name": "Tribe Speaker Application", "Audience": "All Valid Ticket Holders", "Subject_Line": "Your Moment to Shine at Mindvalley University 2026 🌟", "Proposed_Send_Date": "2026-04-20", "Day_of_Week": "Monday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Tribe Stage application form", "Notes": "Open Tribe Stage applications. Set deadline ~May 4.", "Priority": "Medium", "Copy_2026": "Hey [First Name],\n\nWe're excited to announce that Tribe Stage Applications are now open for Mindvalley University 2026 in Tallinn (July 20 – August 2)!\n\nThis year, we're doing things differently. This isn't just about sharing a session — it's about uncovering the next great Mindvalley Voice.\n\nIf you've ever dreamed of being on stage at a Mindvalley event... this is your moment to be seen.\n\n🎤 What is the Tribe Stage?\n\nThe Tribe Stage is a dedicated platform where Mindvalley Members like you can lead a session, share your unique wisdom, and show the world what you're made of.\n\nMovement classes, experiential workshops, guided meditations, powerful talks — we welcome it all, as long as it's real, impactful, and aligned with Mindvalley's mission.\n\n✨ This Opportunity Is for You If:\n\n✅ You're an active Mindvalley Member\n✅ You hold a valid MVU 2026 ticket\n✅ You are not a selected Support Crew Volunteer\n✅ You feel called to serve, teach, or inspire from the heart\n✅ You're ready to step into your voice and be seen\n\n👉 Apply to take the Tribe Stage here: [Application Link]\n\n📌 Application deadline: May 4th, 2026\n\nSpots are limited, and this year's Tribe Stage is more than just a moment — it's a potential launchpad for your voice within the Mindvalley ecosystem.\n\nSo if you feel the call... answer it.\n\nWith excitement,\nKadi Oja\nHead of Flagship Events\n\nP.S. This opportunity is exclusive to Mindvalley Members with valid MVU 2026 tickets. If you haven't secured yours yet, now's the time. Let your voice be heard. 🎤", "Reference_2025_Copy": "[May 5, 2025 — Tribe Speaker Application]\nAudience: All Valid Ticket Holders\nSubject: Your Moment to Shine at Mindvalley University 2025 🌟\nKey content: Opened Tribe Stage applications (deadline Jul 14). Explained concept: platform for members to lead sessions. Eligibility: active member, valid ticket, not a volunteer. Framed as launchpad for voice in MV ecosystem. Signed by Kadi Oja, Head of Flagship Events.", "Prep_Notification_Date": "2026-04-13"}, {"ID": "6", "Sequence": "Pre-Event Engagement", "Email_Name": "Volunteer Stories", "Audience": "Volunteer Database", "Subject_Line": "Have You Volunteered with Us? We'd Love to Hear Your Story 💬", "Proposed_Send_Date": "2026-04-24", "Day_of_Week": "Friday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Story submission form", "Notes": "Gather volunteer testimonials.", "Priority": "Low", "Copy_2026": "Hey [First Name],\n\nWhether you helped guide attendees, supported our speakers, or brought the vibes to the dance floor — if you've volunteered at any Mindvalley event, we want to hear your story.\n\nYou are a vital part of the energy that makes our events so unforgettable. And now, we'd love to know:\n\n✨ What did volunteering mean to you?\n✨ What was your most memorable moment?\n✨ How did the experience impact your life?\n\nWe're gathering volunteer stories to celebrate the amazing humans behind the scenes (aka YOU). Your reflections might be featured in our community channels — or even inspire future volunteers to join the journey.\n\n👉 Share your story here: [Form Link]\n\nBig or small, funny or profound — your story matters. Thank you for showing up, supporting the tribe, and being part of the Mindvalley movement.\n\nWith gratitude,\nMindvalley Events Team\n\nP.S. If you've been meaning to share but haven't yet — now's the perfect time. We can't wait to read your words. 💙", "Reference_2025_Copy": "[May 7, 2025 — Volunteer Stories]\nAudience: Volunteer Database\nSubject: Have You Volunteered with Us? We'd Love to Hear Your Story 💬\nKey content: Called for volunteer testimonials from any past MV event. Asked 3 questions: meaning, memorable moment, life impact. Stories potentially featured in community channels. Signed by Mindvalley Events Team.", "Prep_Notification_Date": "2026-04-17"}, {"ID": "7", "Sequence": "Pre-Event Engagement", "Email_Name": "Accommodation Deals + Attendee Guide Update", "Audience": "All Valid Ticket Holders", "Subject_Line": "Plan Your Stay in Tallinn — Exclusive Accommodation Deals for MVU 🏨", "Proposed_Send_Date": "2026-04-27", "Day_of_Week": "Monday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Hotel deals page + Attendee Guide", "Notes": "Tallinn hotel partnerships. Mention Old Town stays, Kalamaja/Telliskivi Airbnbs.", "Priority": "High", "Copy_2026": "Hey [First Name],\n\nWe're getting closer to Mindvalley University 2026 in Tallinn — and it's time to start planning your stay and getting prepped for the experience of a lifetime. 💫\n\nTo make things easy, we've secured exclusive accommodation deals for our Mindvalley University 2026 attendees and updated your Attendee Guide with the latest event details.\n\n🛏️ Where to Stay in Tallinn\n\nWe've partnered with top hotels near our event venue to offer discounted rates only available for Mindvalley University attendees.\n\nOptions range from charming boutique hotels in the Old Town to modern stays in Tallinn's vibrant Telliskivi and Kalamaja neighborhoods — all within easy reach of the venue.\n\n✨ Explore your accommodation options here: 👉 [Click here to view the exclusive hotel deals]\n\n💡 Tip: Tallinn is becoming one of Europe's hottest summer destinations — we recommend booking early!\n\n📘 Your Updated Attendee Guide\n\nWe've also refreshed your Attendee Guide with key info to help you prepare:\n\n✔️ Venue logistics\n✔️ Suggested packing list\n✔️ Arrival & check-in tips\n✔️ Getting around Tallinn (trams, e-scooters, bikes)\n✔️ FAQs to keep you in the know\n\nBookmark the portal for continuous updates — we'll be adding more details as we get closer to the big event.\n\nWe can't wait to welcome you to Tallinn this July! 🌍💛\n\nWith excitement,\nMindvalley University Team\n\nP.S. Haven't booked your flight yet? Consider arriving a day or two early to explore the Old Town and the Baltic coast before the transformation begins. ✈️🌊", "Reference_2025_Copy": "[May 9, 2025 — Accommodation Deals]\nAudience: All Valid Ticket Holders\nSubject: Plan Your Stay in Amsterdam – Exclusive Accommodation Deals for MVU\nKey content: Exclusive hotel deals near Beurs van Berlage. Updated Attendee Guide with venue logistics, packing list, arrival tips, FAQs. Encouraged early booking (Amsterdam fills up in August). Tip to arrive early to explore city. Signed by MV University Team.", "Prep_Notification_Date": "2026-04-20"}, {"ID": "8", "Sequence": "Pre-Event Engagement", "Email_Name": "Speakers Announcement", "Audience": "All Valid Ticket Holders", "Subject_Line": "Meet the First Speakers of Mindvalley University 2026! 🎤✨", "Proposed_Send_Date": "2026-05-18", "Day_of_Week": "Monday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Event page / speaker lineup", "Notes": "First wave of speaker reveals. Include 5-10 confirmed names.", "Priority": "High", "Copy_2026": "Hey [First Name],\n\nThe countdown to Mindvalley University 2026 in Tallinn is on... and we're thrilled to share the first wave of extraordinary speakers joining us this July 20 – August 2.\n\nFrom visionary thinkers to transformational teachers, this lineup is designed to stretch your mind, open your heart, and elevate every area of your life — from mindset to leadership, relationships to personal transformation.\n\n🌟 Here's Your First Look at the Lineup:\n\n[Speaker 1] — [One-line bio]\n[Speaker 2] — [One-line bio]\n[Speaker 3] — [One-line bio]\n[Speaker 4] — [One-line bio]\n[Speaker 5] — [One-line bio]\n\nAnd of course, some of your most-loved Mindvalley speakers will also return to the stage:\n\n[Returning Speaker 1] — [One-line bio]\n[Returning Speaker 2] — [One-line bio]\nVishen — Founder of Mindvalley & your guide through the extraordinary\n\nAnd this is just the beginning.\n\nThis is more than a lineup. It's a movement of minds and souls coming together in one of Europe's most captivating cities. And the best part? You'll be right there in the heart of it.\n\nLet the countdown begin,\nThe Mindvalley Events Team\n\nP.S. More speakers will be announced soon — stay tuned and stay inspired. 🌍✨", "Reference_2025_Copy": "[Jun 3, 2025 — Speakers Announcement]\nAudience: All Valid Ticket Holders\nSubject: Meet the First Speakers of Mindvalley University 2025! 🎤✨\nKey content: First wave of speakers: Brendan Kane, Roxie Nafousi, Itay Talgam, Emanuela Deyanova, Kwame Christian. Returning: Jimmy Naraine, Linda Clemons, Marie Diamond, Paul McKenna, Vishen. Framed as movement, not just lineup. Teased more announcements coming. Signed by MV Events Team.", "Prep_Notification_Date": "2026-05-11"}, {"ID": "9", "Sequence": "Pre-Event Engagement", "Email_Name": "Style Guide Announcement", "Audience": "All Valid Ticket Holders", "Subject_Line": "Ready for the Magic? Your Mindvalley U 2026 Party Guide is Here 💃", "Proposed_Send_Date": "2026-06-05", "Day_of_Week": "Friday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Style Guide PDF download", "Notes": "Party themes, dress codes, venues in Tallinn.", "Priority": "High", "Copy_2026": "Hey [First Name],\n\nEvery great story has moments you never forget. At Mindvalley U 2026, those moments won't just happen in the sessions or the workshops...\n\nThey'll come alive under the Baltic summer sky, in historic courtyards, on rooftop terraces, and beside strangers who become family.\n\nTo help you fully step into the Mindvalley U experience, we've created something special: Your official Style Guide — a curated map of where to go, what to wear, and how to show up for the most magical nights of the year.\n\n✨ Week 1 Highlights (July 20-25):\n\n🪩 Monday, July 20 — Welcome Social\n[Venue TBD], 7 PM – 11 PM\nA warm gathering to meet your fellow tribe members. Casual, light, joyful — dress however you feel most like YOU.\n\n🌟 Thursday, July 23 — [VIP Party Theme TBD] (VIP & First Class only)\n[Venue TBD], 9 PM – 1 AM\nAn exclusive evening designed for connection and celebration. Dress code details in the Style Guide.\n\n⚡ Saturday, July 25 — [Main Party Theme TBD]\n[Venue TBD], 8:30 PM – 2 AM\nThe main party of Week 1. Bold, electric, unforgettable.\n\n🌿 Week 2 Highlights (July 27 - August 1):\n\n🪩 Monday, July 27 — Welcome Social\n[Venue TBD], 7 PM – 11 PM\nCasual, light, joyful — come as you are and be ready to mingle.\n\n☀️ Thursday, July 30 — [VIP Party Week 2 Theme TBD] (VIP & First Class only)\n[Venue TBD], 9 PM – 1 AM\nAnother magical evening exclusively for VIP & First Class guests.\n\n🎷 Saturday, August 1 — [Closing Party Theme TBD]\n[Venue TBD], 8:30 PM – 2 AM\nThe grand finale. Go all in. Sparkle hard. Dance harder.\n\n💫 And for our youngest tribe members?\nWe love seeing families celebrate together — and your kids are welcome to join the fun! For Saturday main parties, we'll have a dedicated kids' area and activities. VIP parties are designed mainly for adults (recommended 16+).\n\n📎 All the event details, times, venues, and dress inspo live inside your Style Guide:\n\n👉 [Click here to access the full Mindvalley U 2026 Style Guide PDF]\n\nThese events aren't just social — they're transformational. They're the heartbeat of Mindvalley U. And how you show up matters. Not to impress, but to express.\n\nLooking forward to seeing you there!\n\nWith love,\nMindvalley U Team\n\nP.S. Remember:\n✔️ Bring your MVU wristband to every event\n✔️ Bring cash/card for food & drinks at the venues\n✔️ Come ready to connect, move, laugh, and be seen ✨", "Reference_2025_Copy": "[Jun 20, 2025 — Style Guide Announcement]\nAudience: All Valid Ticket Holders\nSubject: Ready for the Magic? Your Mindvalley U 2025 Party Guide is Here 💃\nKey content: Launched Style Guide PDF. Week 1: Welcome Social at Tolhuistuin, On Cloud 9 at A'DAM Tower (VIP), Into the Future at Amaze. Week 2: Welcome Social, Summer by the Park at Vondelpark (VIP), Roaring 1920s Closing at Het Sieraad. Kids welcome at main parties (dedicated area). VIP parties recommended 16+. Signed by MV U Team.", "Prep_Notification_Date": "2026-05-29"}, {"ID": "10", "Sequence": "Pre-Event Engagement", "Email_Name": "Lineup Update", "Audience": "All Valid Ticket Holders", "Subject_Line": "New Speakers Just Announced — This Summer in Tallinn Will Change Everything ✨", "Proposed_Send_Date": "2026-06-22", "Day_of_Week": "Monday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Full lineup page", "Notes": "Second wave of speakers. 3-4 new headline names.", "Priority": "High", "Copy_2026": "Hey [First Name],\n\nEvery year at Mindvalley U, we gather the world's most brilliant minds in personal transformation to spark something extraordinary within you.\n\nBut this year?\n\nSomething even bigger is unfolding in Tallinn...\n\nFor the very first time, we're welcoming powerhouse visionaries who've never graced the Mindvalley stage before — and their arrival is sending ripples of anticipation through our entire community.\n\nLet us introduce you to the trailblazers making their Mindvalley U debut:\n\n[New Speaker 1] — [Compelling one-line bio]\n\n[New Speaker 2] — [Compelling one-line bio]\n\n[New Speaker 3] — [Compelling one-line bio]\n\n[New Speaker 4] — [Compelling one-line bio]\n\nThese teachers aren't joining us just to share information... they will be on stage to lead life-changing transformations.\n\nAnd you get to be there to experience it all.\n\nWe don't say this lightly — you will never forget what happens in Tallinn.\nAnd you'll never be the same after it.\n\nWith wonder,\nMindvalley U Team ✨\n\nP.S. Are you planning to apply to speak at Mindvalley U? 🚨 The application deadline is approaching. If you've got a message to share with our tribe... now's the time to raise your hand.\n\n👉 Apply here before [deadline date] — or forever hold your peace. 😉", "Reference_2025_Copy": "[Jul 9, 2025 — Lineup Update]\nAudience: All Valid Ticket Holders\nSubject: Four world-shifting teachers. One life-changing summer. This is your moment.\nKey content: Second wave reveal: Dr. Amanda Hanson, Daniel Priestley, Garry Lineham (Human Garage), Alyssa Nobriga. Each with compelling bio paragraph. Framed as debut speakers. Tribe Stage reminder (deadline Jul 14). Signed by MV U Team.", "Prep_Notification_Date": "2026-06-15"}, {"ID": "11", "Sequence": "Pre-Event Engagement", "Email_Name": "Youth Programs Waiver", "Audience": "Youth Programs Ticket Holders", "Subject_Line": "One Quick Step to Complete Before Mindvalley U 💛", "Proposed_Send_Date": "2026-06-22", "Day_of_Week": "Monday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Waiver signing link", "Notes": "Mandatory waiver for Kids & Teens Programs.", "Priority": "High", "Copy_2026": "Hey [First Name],\n\nWe're getting closer to welcoming your family to Mindvalley U 2026 in Tallinn — and our team is buzzing with excitement to create an unforgettable experience for your little (and not-so-little!) ones. 🌱\n\nTo help us keep every child safe, supported, and cared for, we ask all parents and guardians to complete a mandatory waiver for the Kids & Teens Programs.\n\nIt's a simple step, but it's an important one — and it must be completed before the event.\n\n👉 Click Here To Sign. Please kindly sign it as soon as possible.\n\nThis helps us ensure your child's experience is smooth, secure, and full of magic. ✨\n\nThank you for being part of this journey — and for trusting us with your most important humans.\n\nWith love,\nThe Mindvalley Events Team", "Reference_2025_Copy": "[Jul 7, 2025 — Youth Programs Waiver]\nAudience: All Valid Ticket Holders (with youth)\nSubject: One Quick Step to Complete Before Mindvalley U 💛\nKey content: Mandatory waiver for Kids & Teens Programs. Must be completed before event. Simple, warm tone emphasizing child safety. Signed by Mindvalley Events Team (originally by Gigi Marquez Suarez).", "Prep_Notification_Date": "2026-06-15"}, {"ID": "12", "Sequence": "Pre-Event Engagement", "Email_Name": "VIP Upgrade Offer", "Audience": "All Valid Ticket Holders (non-VIP/FC)", "Subject_Line": "Your First-Class Invitation Is Still Open 💜", "Proposed_Send_Date": "2026-06-29", "Day_of_Week": "Monday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "First-Class upgrade form", "Notes": "Upsell to First Class.", "Priority": "Medium", "Copy_2026": "Hey [First Name],\n\nWe noticed you haven't filled out your First-Class upgrade form yet — and we wanted to give you a gentle nudge 💜\n\nIf this has been on your mind, you're just one form away from experiencing Mindvalley U at its highest frequency.\n\n✅ Private dinner with our top speakers\n✅ Front row seats (because you came here to go big)\n✅ Exclusive First-Class & VIP-only social gatherings\n✅ Personal concierge-level care from our Events team\n\nSounds like something you want?\n\n👉 Fill out the First-Class request form now — and our team will be in touch right after.\n\nWe're down to just a handful of seats, so don't wait too long.\nThis is your chance to step into the room where the biggest shifts happen.\n\nWith love & elevation,\nMindvalley U Team", "Reference_2025_Copy": "[Jul 23, 2025 — VIP Upgrade]\nAudience: All Valid Ticket Holders\nSubject: Your First-Class Invitation Is Still Open\nKey content: Gentle upsell nudge for First-Class upgrade. Perks listed: private speaker dinner, front row, exclusive parties, personal concierge. Urgency: handful of seats left. Link to request form. Signed by MV U Team.", "Prep_Notification_Date": "2026-06-22"}, {"ID": "13", "Sequence": "Pre-Event Engagement", "Email_Name": "SIX App", "Audience": "All Valid Ticket Holders", "Subject_Line": "Your Access to the Mindvalley U Community: Meet the SIX App 🤝", "Proposed_Send_Date": "2026-07-01", "Day_of_Week": "Wednesday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "App Store + Play Store links", "Notes": "Introduce Six networking app.", "Priority": "Medium", "Copy_2026": "Hey [First Name],\n\nIt's almost time. Tallinn is calling, and the countdown to Mindvalley U 2026 has officially begun. 🎉\n\nBut here's the thing — your Mindvalley U journey doesn't start at the check-in desk. It starts the moment you join our community app: Six.\n\nSix is Mindvalley's social app, built for brilliant minds like yours to connect, collaborate, and celebrate before the first session even begins.\n\nThink of it as your digital passport into a thriving, global tribe of visionaries.\n\nHere's what you'll love:\n\n✅ Improved matching: Check out the 'Discover' tab — you'll get daily recommendations for new friends and peers based on your interests, location, and more.\n✅ Meet your fellow attendees in advance: Say hello to future co-founders, best friends, and the people you'll see on the dance floor.\n✅ Chat effortlessly: Organize dinners, co-working sessions, or sunrise walks along the Baltic coast.\n✅ Host your own meetups: Browse community-led events and create your own gatherings around Tallinn.\n\nAlready used Six before? You'll be added to the Mindvalley U 2026 network automatically.\n\nNew to the app? Keep an eye on your inbox — once you've been added to the network, we'll send you an exclusive invite code and setup instructions.\n\nHow to download the app:\n\n📱 iOS: [Link]\n📱 Android: [Link]\n\nWith Six in your pocket, Mindvalley U becomes more than an event — it becomes your new tribe, your new Tallinn family, and your next level.\n\nSee you soon under the Baltic skies,\nMindvalley U Team\n\n*Please note that the latest version is required to experience all the new features of the app.", "Reference_2025_Copy": "[Jul 25, 2025 — SIX App]\nAudience: All Valid Ticket Holders\nSubject: Your Access to the Mindvalley U Community: Introducing the SIX App\nKey content: Introduced Six networking app. Features: matching algorithm, pre-event connections, chat, community-led meetups. Existing users auto-added to 2025 network. New users get invite code. iOS + Android links. Framed as 'digital passport to the tribe'. Signed by MV U Team.", "Prep_Notification_Date": "2026-06-24"}, {"ID": "14", "Sequence": "Pre-Event Engagement", "Email_Name": "VIP Experience Details", "Audience": "VIP Ticket Holders", "Subject_Line": "Your VIP Experience at Mindvalley U 2026 in Tallinn 💫", "Proposed_Send_Date": "2026-07-06", "Day_of_Week": "Monday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Party Style Guide link", "Notes": "Full VIP access breakdown. Tallinn-specific venues.", "Priority": "High", "Copy_2026": "Hey [First Name],\n\nThe countdown is officially on, and we're so excited to welcome you to your Mindvalley U 2026 VIP experience — a journey designed to elevate every moment of your growth. 💛\n\nBefore we dive into your access list, don't forget:\n👉 Full details on parties and socials — including dress codes and themes — can be found in the Party Style Guide. We recommend reviewing it so you're ready to celebrate in style.\n\nHere's what's included with your VIP pass:\n\n✅ Full access across all stages and sessions\n✅ Fast-track check-in\n✅ Priority seating in the main auditoriums\n✅ Recordings of Visionary Stage and Insights Stage sessions\n✅ Access to the event agenda app\n✅ Access to networking app Six\n✅ Access to the Welcome Social events\n✅ Access to legendary main parties\n✅ Access to special invite-only VIP parties\n✅ Networking & growth opportunities\n\nWe will be sharing last-minute reminders with venue info, registration & agenda timings soon. Please keep an eye on your inbox.\n\nYour next-level adventure starts now. 🚀\n\nWith love,\nMindvalley U Team", "Reference_2025_Copy": "[Jul 2025 — VIP Experience]\nAudience: VIP Ticket Holders\nSubject: Your Experience as a VIP ticket holder at Mindvalley U 2025💫\nKey content: Full VIP perk breakdown: all stages, fast-track check-in, priority seating, recordings, agenda app, Six app, Welcome Social, main party, VIP-only party, networking. Referenced Party Style Guide. Teased last-minute reminders. Signed by MV U Team.", "Prep_Notification_Date": "2026-06-29"}, {"ID": "15", "Sequence": "Pre-Event Engagement", "Email_Name": "First Class Experience Details", "Audience": "First-Class Ticket Holders", "Subject_Line": "Your First Class Experience at Mindvalley U 2026 in Tallinn 💫", "Proposed_Send_Date": "2026-07-06", "Day_of_Week": "Monday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Party Style Guide + Speaker Dinner details", "Notes": "Full First Class breakdown with speaker dinner details.", "Priority": "High", "Copy_2026": "Hey [First Name],\n\nThis summer, you're not just attending Mindvalley U... you're experiencing it First Class. 🌍✨\n\nWith your ticket, you have access to every elevated moment we've curated for our community members.\n\nBefore we dive into your access list, don't forget:\n👉 Full details on parties and socials — including dress codes and themes — can be found in the Party Style Guide. We recommend reviewing it so you're ready to celebrate in style.\n\nHere's what's included with your First Class pass:\n\n✅ Fast-track check-in\n✅ First row seating in the main auditoriums\n✅ Full access across all stages and sessions\n✅ Recordings of Visionary Stage and Insights Stage sessions\n✅ Access to the event agenda app\n✅ Networking & growth opportunities\n✅ Access to Mindvalley networking app: Six\n✅ Access to Welcome Social events\n✅ Access to the legendary main parties\n✅ Special invite-only VIP parties\n✅ Private Speaker Dinners with Mindvalley speakers\n\n🍷 First Class Speaker Dinners — Mark Your Calendar!\n\nAs a First Class guest, you're warmly invited to the exclusive Speaker Dinners — intimate evenings of connection, insight, and fine food with fellow visionaries and our Mindvalley speakers.\n\n🍽️ [Restaurant TBD]\n📅 [Week 1 date TBD]\n🕢 7:30 PM – 11:30 PM\n📍 [Address in Tallinn]\n🌿 Buffet-style dinner and selection of drinks\n\n🍽️ [Restaurant TBD]\n📅 [Week 2 date TBD]\n🕢 7:30 PM – Midnight\n📍 [Address in Tallinn]\n🌿 Buffet-style dinner and selection of drinks\n\nWe will be sharing last-minute reminders with venue info, registration & agenda timings soon. Please keep an eye on your inbox.\n\nWe're honored to have you join this circle of creators, leaders, and change-makers. Let's make it unforgettable.\n\nWith love,\nMindvalley U Team", "Reference_2025_Copy": "[Aug 2025 — First Class Experience]\nAudience: First-Class Ticket Holders\nSubject: Your Experience as a First Class Ticket Holder at Mindvalley U 2025 💫\nKey content: All VIP perks PLUS: first row seating, private Speaker Dinners. Two dinners listed: Carstens Brasserie (Aug 5) and Satchmo (Aug 12), both in Amsterdam with buffet and drinks. Full access breakdown. Signed by MV U Team.", "Prep_Notification_Date": "2026-06-29"}, {"ID": "16", "Sequence": "Pre-Event Engagement", "Email_Name": "Agenda App", "Audience": "All Valid Ticket Holders", "Subject_Line": "Here's Your Agenda App for Mindvalley U 2026 ✨", "Proposed_Send_Date": "2026-07-10", "Day_of_Week": "Friday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "App link", "Notes": "Launch agenda app with full schedule.", "Priority": "High", "Copy_2026": "Hi [First Name],\n\nWe're thrilled to welcome you to Mindvalley U 2026 — and your experience is about to get even smoother (and smarter).\n\nTo stay informed about daily schedules and everything happening across all age groups, we'll be using the Mindvalley U App as your go-to tool.\n\n📲 Get Started Now\n\nAccess the app here: [App URL]\n\n⏳ Heads up: the first time you open the app, it might take a moment to load — but after that, it runs quickly and smoothly.\n\n🔍 What You'll Find Inside\n\n✨ Full event schedule for adults, teens, and kids\n🧠 Details on every talk, workshop, and speaker\n💻 Optimized for both mobile and web — simply bookmark it on your laptop for easy access\n\n📖 Need more info? You can always refer to the Attendee Guide for tips, answers, and important event info.\n\nWe can't wait to co-create this unforgettable journey with you in Tallinn.\n\nWith excitement,\nMindvalley U Team", "Reference_2025_Copy": "[Jul 29, 2025 — Agenda App]\nAudience: All Valid Ticket Holders\nSubject: Here's Your Agenda App for Mindvalley U ✨\nKey content: Launched agenda app (mvuapp.mindvalley.com). Features: full schedule for all age groups, speaker details, mobile + web optimized. First load may be slow. Referenced Attendee Guide for more info. Signed by MV U Team.", "Prep_Notification_Date": "2026-07-03"}, {"ID": "17", "Sequence": "Pre-Event Engagement", "Email_Name": "Impact Survey", "Audience": "All Past Event Attendees", "Subject_Line": "Did You Find Love at a Mindvalley Event? ✨", "Proposed_Send_Date": "2026-07-13", "Day_of_Week": "Monday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Survey link (Airtable form)", "Notes": "Collect impact stories from past attendees.", "Priority": "Low", "Copy_2026": "Hey [First Name],\n\nDid you find love at a Mindvalley event?\n\nDid you meet someone who became a best friend, a co-founder, a mentor — or maybe your soulmate?\n\nDid you walk away with a deeper sense of purpose, or a breakthrough that changed your path?\n\nIf you've ever attended a Mindvalley event — from A-Fest to Summit to Mindvalley U — you know it's more than just personal growth.\n\nIt's a portal into a life that's more aligned. More expansive. More connected.\n\nAnd sometimes... that simple decision to attend changes everything.\n\nThat's why we're asking for 60 seconds of your time to share your experience with us. We're collecting real, powerful data about what actually happens at our events — and your story matters more than you think.\n\n👉 Click here to fill out our Impact Survey.\n\nYour answers could help us show the world what this community is really about.\n\nNot just transformation, but connection, purpose, and real-world magic.\n\nThank you for being part of this journey — and for taking a moment to reflect on how far we've come together.\n\nWith gratitude,\nMindvalley Events Team", "Reference_2025_Copy": "[Jul 31, 2025 — Impact Survey]\nAudience: All past event attendees\nSubject: Did You Find Love at a Mindvalley Event?✨\nKey content: Emotional hook about connections made at events. Asked for 60-second survey about impact of attending. Framed as collecting real data about community. Airtable form link. Signed by MV Events Team.", "Prep_Notification_Date": "2026-07-06"}, {"ID": "18", "Sequence": "Pre-Event Last Mile", "Email_Name": "Last Reminders", "Audience": "All Valid Ticket Holders", "Subject_Line": "Mindvalley U 2026: All You Need To Know Before Arriving 🌍", "Proposed_Send_Date": "2026-07-17", "Day_of_Week": "Friday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Attendee Guide + App links", "Notes": "Essential pre-arrival info. CRITICAL email.", "Priority": "Critical", "Copy_2026": "Dear [First Name],\n\nWe're just days away from Mindvalley U 2026 in beautiful Tallinn — and we couldn't be more excited to welcome you to what promises to be an unforgettable summer of transformation, connection, and community. 🌞\n\nBelow you'll find a few essential reminders to help you arrive and settle in smoothly.\n\n🛂 Registration — Monday, July 20\n\n📍 [Venue Name], [Address], Tallinn\n🕗 Register early from 10:30 AM onwards, main program will kick off at 1 PM sharp.\n\nCome by to pick up your wristband, welcome materials, and say hi to your fellow attendees!\n\n☕ Food and drinks will be available for purchase at the venue.\n💳 Bring your card for onsite purchases.\n🚰 Don't forget your reusable water bottle — free water stations available throughout the venue.\n\nPlease remember: You must wear the Mindvalley U wristband to enter all official events and parties.\n\n📱 Download the Mindvalley U Agenda App\n\nThis is your go-to for everything at the venue: schedules, speaker details, and all age-group programming.\n👉 [App URL]\n💡 Tip: The initial load might take a few seconds — but after that, it runs fast and smooth.\n\n🧑‍🤝‍🧑 Start Connecting through our Community App: Six\n\nSix is where the real community magic happens. 🤝 Use it to connect with fellow attendees, find community events, and discover connection recommendations.\n\n📱 iOS: [Link]\n📱 Android: [Link]\n\n🧭 Navigating Tallinn\n\nMindvalley U takes place at [Venue Name], in the heart of the city. Tallinn is incredibly walkable, with excellent tram connections and e-scooter availability. The Old Town is just minutes away.\n✨ Explore your travel tips and hotel deals in your Attendee Guide.\n\n👨‍👩‍👧‍👦 For Parents — Youth Program Updates\n\nYouth Programs kick off on July 20 at 1:00 PM, aligned with the main adult programming. We've created dedicated WhatsApp groups for real-time updates and check-ins.\n\n📲 Join them here:\n➡️ Kids Program (6-12 years old): [Link]\n➡️ Teens Program (13-17 years old): [Link]\n\nPlease note: All youth attendees must be registered at check-in before joining their program.\n\n🧳 Packing List Highlights\n\n✔ Comfortable clothes for warm weather + light rain jacket (expect 18-28°C)\n✔ A notebook and pen\n✔ Outfits/costumes for theme parties & socials\n✔ Exercise gear or yoga mat for embodiment mornings\n✔ Water bottle\n✔ Chargers/adapters if needed\n✔ A sense of wonder and a ready heart 💛\n\n🎉 Welcome Social — July 20, Evening\n\nLet's kick things off with a celebration. Expect live music, laughter, and instant connections.\n👗 No dress code — come as you are and enjoy.\n🔗 Access the 2026 Parties and Socials Style Guide for more info.\n\nWe can't wait to welcome you in Tallinn — to grow together, dance under the Baltic summer sky, and co-create a chapter you'll never forget.\n\nWith love,\nMindvalley University Team", "Reference_2025_Copy": "[Aug 1, 2025 — Last Reminders]\nAudience: All Valid Ticket Holders\nSubject: Mindvalley U 2025: All You Need To Know Before Arriving 🌍\nKey content: Registration (Aug 4 at Beurs van Berlage, 10:30 AM+). Agenda App + Six App links. Navigating Amsterdam (trams, bikes, ferries). Youth Programs (WhatsApp groups for Kids 6-12 & Teens 13-17). Packing list (16-28°C weather). Welcome Social info. Style Guide link. Wristband requirement. Signed by MV University Team.", "Prep_Notification_Date": "2026-07-10"}, {"ID": "19", "Sequence": "Pre-Event Last Mile", "Email_Name": "Week 1 Summary / Day Before", "Audience": "All Valid Ticket Holders", "Subject_Line": "Are You Ready for Week 1 Magic? ✨", "Proposed_Send_Date": "2026-07-19", "Day_of_Week": "Sunday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Agenda App + Style Guide links", "Notes": "Day-before email. Registration, speakers, parties, Youth info.", "Priority": "Critical", "Copy_2026": "Hey [First Name],\n\nThe moment we've all been waiting for is finally here — Week 1 of Mindvalley U 2026 kicks off tomorrow in the heart of Tallinn! 🇪🇪\n\nHere's everything you need to know to start strong:\n\n🛂 Registration — Monday, July 20\n\n📍 [Venue Name], [Address], Tallinn\n🕗 Register early from 10:30 AM onwards\n\nCome by to pick up your wristband, welcome materials, and say hi to your fellow attendees! The Welcome Session begins shortly after; please arrive early to complete your registration. Your kids will be welcome to their respective programs starting at 1 PM.\n\nDelicious options will be available at the venue throughout the day — from coffee and snacks to full lunch offerings.\n💳 Bring your card for onsite purchases.\n🚰 Don't forget your reusable water bottle.\n\n🌟 Welcome Session with Vishen\n\n🕐 Starts at 1:00 PM sharp on Monday, July 20.\nJoin us as Vishen officially opens this year's journey, setting the tone for the next two weeks of transformation and connection.\n\n🧒 Youth Programs kick off at 1:00 PM only on Monday, July 20. Make sure you drop off your kids at their respective programs shortly before heading to the Welcome Session, and pick them up by 5:05 PM. During the rest of Mindvalley U, Youth Programs will run from 10:00 AM to 12:00 PM and 2:00 PM to 5:00 PM.\n\n🤩 What else is happening at Mindvalley U Week 1?\n\n👏 Amazing speakers will be taking the stage during Week 1, including [Speaker list TBD].\n\n📖 Mindvalley Book Club will be hosting sessions with incredible authors and speakers during lunch breaks.\n\nAnd of course, there will be parties: the Welcome Social on Monday, the exclusive VIP Party on Thursday, and the Main Party on Saturday.\n\n🎉 Welcome Social — Monday Night\n\n📍 [Venue TBD], Tallinn\n🕖 7 PM – 11 PM\n\nWe start Mindvalley U with a joyful celebration of our global tribe. Expect music, connection, dancing, and kid-friendly activities.\n👗 No dress code — come as you are and be ready to mingle.\n🔗 For more info on all social and evening events: Access the 2026 Parties and Socials Style Guide\n\nSee you soon in Tallinn — it's going to be unforgettable.\n\nWith love,\nThe Mindvalley U Team\n\nP.S. Don't forget to download the Mindvalley U Agenda app to stay informed about all the sessions. For Community announcements on WhatsApp, join the MVU 2026 channel here: [Link]", "Reference_2025_Copy": "[Aug 3, 2025 — Week 1 Summary]\nAudience: All Valid Ticket Holders\nSubject: Are You Ready for Week 1 Magic? ✨\nKey content: Registration (Aug 4 at Beurs van Berlage, 10:30 AM). Welcome Session with Vishen at 1 PM. Youth Programs at 1 PM (WhatsApp groups). Speaker list (Vishen, Nir Eyal, Eric Edmeades, Marie Diamond, Paul McKenna, etc.). Book Club sessions. Parties: Welcome Social (Tolhuistuin), On Cloud 9 VIP (A'DAM Tower), Into the Future (Amaze). Signed by MV U Team.", "Prep_Notification_Date": "2026-07-12"}, {"ID": "20", "Sequence": "During Event Week 1", "Email_Name": "One Talk Workshop (or equivalent bonus)", "Audience": "All Valid Ticket Holders", "Subject_Line": "Special Bonus Workshop at Mindvalley U 2026 🎤", "Proposed_Send_Date": "2026-07-20", "Day_of_Week": "Monday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "RSVP link", "Notes": "Bonus workshop. Only send if applicable to 2026 programming.", "Priority": "Medium", "Copy_2026": "Hey [First Name],\n\nWhat if just one experience could change the trajectory of your career, your brand — or your life?\n\nWe're thrilled to announce a special bonus workshop happening during Mindvalley U 2026:\n\n📅 [Dates TBD]\n🕓 [Times TBD]\n📍 Live in Tallinn + Streamed Globally\n\n👉 RSVP Now by clicking this link: [RSVP Link]\n\nYou'll walk away with:\n✓ [Key takeaway 1]\n✓ [Key takeaway 2]\n✓ [Key takeaway 3]\n✓ [Key takeaway 4]\n\nTo join, simply click on the link above and RSVP.\n\nWe can't wait to see you there.\n\nWith gratitude,\nMindvalley U Team\n\nP.S. Got a life-changing transformation thanks to Mindvalley? 🎥 We're filming inspiring stories at Mindvalley U — click here to share yours and you could get featured! 💫", "Reference_2025_Copy": "[Aug 4, 2025 — One Talk Workshop]\nAudience: All Valid Ticket Holders\nSubject: Special Bonus Workshop: The One Talk Workshop with Eric Edmeades 🎤\nKey content: One Talk Workshop with Eric Edmeades. 3 afternoons (Aug 5-7), 4-8 PM CET. Part of Speaking & Influence Mastery program. Takeaways: complete talk, proven frameworks, real-time coaching, confidence. RSVP link. P.S. linked to transformation story form. Signed by MV U Team.", "Prep_Notification_Date": "2026-07-13"}, {"ID": "21", "Sequence": "During Event Week 1", "Email_Name": "VIP Party Week 1", "Audience": "VIP + First-Class Ticket Holders", "Subject_Line": "You're Invited: [VIP Party Theme TBD] ✨", "Proposed_Send_Date": "2026-07-22", "Day_of_Week": "Wednesday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Venue details + map link", "Notes": "VIP/FC exclusive party. Tallinn venue TBD.", "Priority": "High", "Copy_2026": "Hey [First Name],\n\nYou're invited to an unforgettable evening — a First Class and VIP-only celebration designed to honor your journey in true Mindvalley style. ✨\n\n📍 Location: [Venue TBD], Tallinn\n📅 Date: Thursday, July 23, 2026\n🕘 Time: 9 PM – 1 AM\n\n🚶 How to Get There:\n[Transport details TBD — walking directions, taxi info, etc.]\n\n👗 Dress Code:\n[Theme and dress code TBD — will match the Style Guide]\n\n🍏 F&B: Drinks and food available for purchase on the spot by card or cash.\n\nNote for parents: VIP parties are designed for adults, and we recommend attendance for guests aged 16+. If younger children do join, venue regulations require that they leave before midnight.\n\nThis is your moment to connect deeply, celebrate boldly, and take in the beauty of Tallinn with your tribe.\n\nSee you there, dressed to shine,\nThe Mindvalley U Team\n\nP.S. Don't forget to wear your Mindvalley U wristband to enter. It's the only way to access the party.", "Reference_2025_Copy": "[Aug 7, 2025 — VIP On Cloud 9 Party]\nAudience: VIP Ticket Holders\nSubject: Your Invite to the VIP On Cloud 9 Party at A'DAM Tower 🥂\nKey content: VIP party at A'DAM Tower. Aug 7, 9 PM-1 AM. Transport: free F3 ferry from Central Station. Dress code: flowing fabrics, silver/white/pale blue, ethereal. Wristband required for entry. Parents note: 16+ recommended. Signed by MV U Team.", "Prep_Notification_Date": "2026-07-15"}, {"ID": "22", "Sequence": "During Event Week 1", "Email_Name": "Main Party Week 1", "Audience": "All Valid Ticket Holders", "Subject_Line": "[Main Party Theme TBD] — Tonight We Go Big 🚀", "Proposed_Send_Date": "2026-07-24", "Day_of_Week": "Friday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Venue details + map link", "Notes": "Main party of Week 1. Tallinn venue TBD.", "Priority": "High", "Copy_2026": "Hi [First Name],\n\nThis Saturday, July 25th, we're taking you somewhere extraordinary...\n\n[Party Name TBD] is not just a party — it's an experience.\n\nFrom the moment you step in, you'll be surrounded by [description TBD based on theme and venue]. Bold. Electric. Unforgettable.\n\n📍 Location: [Venue TBD], Tallinn\n🕗 Time: 8:30 PM – 2:00 AM\n\n✨ For Families: Kids will have a dedicated space with activities so younger guests can enjoy their own magic.\n🍽 Food & Drinks: Bring card or cash for purchases. Dinner options will be available.\n🎟 Tickets: Included with your Mindvalley U pass. Just wear your wristband for seamless entry.\n\nThis isn't just a Saturday night out. This is [Party Name].\nSee you on the dance floor.\n\nWith excitement,\nThe Mindvalley U Team", "Reference_2025_Copy": "[Aug 9, 2025 — Amaze Party / Into the Future]\nAudience: VIP Ticket Holders (separate version for all)\nSubject: 🚀Step Into the Future Tonight\nKey content: Into the Future party at Amaze venue. Aug 9, 8:30 PM-2 AM. LED tunnel, immersive space. Kids dedicated area. F&B by card/cash. Wristband entry. Signed by MV U Team.", "Prep_Notification_Date": "2026-07-17"}, {"ID": "23", "Sequence": "During Event Week 1", "Email_Name": "Feedback Week 1", "Audience": "All Valid Ticket Holders", "Subject_Line": "Share Your Feedback About Week 1 & Win a Ticket for MVU 2027 🌟", "Proposed_Send_Date": "2026-07-25", "Day_of_Week": "Saturday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Feedback survey link", "Notes": "Collect Week 1 feedback. Prize: 2 x MVU 2027 tickets.", "Priority": "High", "Copy_2026": "Hi [First Name],\n\nYour voice matters — and we'd love to hear it.\n\nWe're gathering feedback on your experience about Week 1 at Mindvalley U 2026 to make next year even more extraordinary.\n\n✨ As a thank you, everyone who submits their feedback about Week 1 will be entered into a draw to select two winners for Mindvalley U 2027.\n\n📌 Important: If you choose to remain anonymous, you are welcome to share your feedback — but please note that anonymous entries cannot participate in the draw, as we'll have no way to contact you.\n\n📝 Share your feedback here: [Survey Link]\n\nYour insights will help us shape the magic of next year's event. Thank you for co-creating this journey with us.\n\nWith gratitude,\nThe Mindvalley U Team", "Reference_2025_Copy": "[Aug 11, 2025 — Feedback Week 1]\nAudience: All Valid Ticket Holders\nSubject: Share Your Feedback About Week 1 & Win a Ticket for Mindvalley U 2026 🌟\nKey content: Week 1 feedback collection. Prize: 2 x MVU 2026 tickets. Anonymous entries can't participate in draw. Survey link. Signed by MV U Team.", "Prep_Notification_Date": "2026-07-18"}, {"ID": "24", "Sequence": "During Event Week 2", "Email_Name": "Welcome to Week 2", "Audience": "All Valid Ticket Holders", "Subject_Line": "Welcome to Week 2 — The Journey Continues ✨", "Proposed_Send_Date": "2026-07-26", "Day_of_Week": "Sunday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Agenda App + Style Guide links", "Notes": "Week 2 overview: registration, speakers, parties, Youth updates.", "Priority": "High", "Copy_2026": "Dear [First Name],\n\nWelcome to Week 2 of Mindvalley U 2026 in Tallinn — where the magic keeps unfolding. Whether you've been with us since Day 1 or are just joining now, this week promises powerful learning, deep connection, and nights you'll never forget.\n\nHere's a glimpse of what's ahead:\n\n🎟️ Registration: On Monday, July 27, registration opens at 8:30 AM. From Tuesday onward, it will start at 9:00 AM daily. Content sessions begin promptly at 10:00 AM each day — so arrive early and settle in for an inspiring start.\n\n🧒 Youth Programs start daily at 10:00 AM.\nJoin us for Parent Orientation on Monday, July 27.\nStay tuned for important updates — all announcements will be shared in the dedicated Youth WhatsApp Groups.\n\n➡️ Kids Program (6-12 years old) Parents WhatsApp Group: [Link]\n➡️ Teens Program (13-17 years old) Parents WhatsApp Group: [Link]\n\n🎤 Inspiring Talks & Workshops (Check your Mindvalley U Agenda App for full details)\n\n[Speaker list TBD for Week 2]\n\nAbout Session Feedback: In addition to the session ratings, we would love to hear your overall feedback about your experience so far. Please take a moment to share your thoughts with us here: [Link]\n\n🎉 Unforgettable Evenings (Check your Style Guide for dress codes)\n\n🌇 Monday, July 27 — Welcome Social\n[Venue TBD], 7 PM – 11 PM\nEase into the week with fresh faces and familiar friends.\n\n🌿 Thursday, July 30 — [VIP Party Theme TBD] (VIP & First Class)\n[Venue TBD], 9 PM – 1 AM\nAn exclusive evening of elegance and connection.\n\n💃 Saturday, August 1 — [Closing Party Theme TBD]\n[Venue TBD], 8:30 PM – 2 AM\nThe grand finale. A glittering celebration to close our journey together.\n\nLet's make Week 2 unforgettable.\n\nWarmly,\nThe Mindvalley U Team", "Reference_2025_Copy": "[Aug 9, 2025 — Welcome to Week 2]\nAudience: All Valid Ticket Holders\nSubject: Welcome to Week 2 — The Journey Continues ✨\nKey content: Week 2 overview. Registration (Aug 11, 8:30 AM). Youth Programs + WhatsApp groups. Speaker highlights (Emanuela Deyanova, Ronan Diego, Alyssa Nobriga, Kwame Christian, Regan Hillyer, Billy Carson, Noelle Russell, Dorie Clark, Daniel Priestley, Prince EA). Evening events: Welcome Social (Tolhuistuin), Summer by the Park (VIP, Vondelpark), Roaring 1920s Closing (Het Sieraad). Signed by MV U Team.", "Prep_Notification_Date": "2026-07-19"}, {"ID": "25", "Sequence": "During Event Week 2", "Email_Name": "VIP Party Week 2", "Audience": "VIP + First-Class Ticket Holders", "Subject_Line": "You're Invited: [Week 2 VIP Party Theme TBD] ✨", "Proposed_Send_Date": "2026-07-29", "Day_of_Week": "Wednesday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Venue details + map link", "Notes": "Week 2 VIP/FC exclusive party.", "Priority": "High", "Copy_2026": "Dear [First Name],\n\nYou're invited to one of the most enchanting evenings of Mindvalley U 2026:\n\n🌟 [Party Theme TBD]\n\n📍 Location: [Venue TBD], Tallinn\n🗓 Date: Thursday, July 30th\n🕘 Time: 9 PM – 1 AM\n🍏 F&B: Drinks and food available for purchase on the spot by card or cash.\n\n[Venue description TBD — atmosphere, what makes it special]\n\nMusic will be in charge of these incredible artists:\n[DJ/Artist lineup TBD]\n\nAnd the dress code?\n[Dress code TBD — aligned with party theme and Style Guide]\n\nNote for parents: VIP parties are designed for adults, and we recommend attendance for guests aged 16+. If younger children do join, venue regulations require that they leave before midnight.\n\nThis is a celebration of presence, connection, and the beauty of a Baltic summer night well-lived. ✨\n\nWe can't wait to share this magic with you.\n\nWith love,\nMindvalley U Team\n\nP.S. Do you have a powerful transformation story from Mindvalley? Share it with us here — your journey might inspire someone else's future.", "Reference_2025_Copy": "[Aug 14, 2025 — VIP Summer By The Park]\nAudience: VIP + First-Class Ticket Holders\nSubject: You're Invited: A Summer Night in the Heart of Vondelpark ✨\nKey content: Summer by the Park at Park Zuid, Vondelpark. Aug 14, 9 PM-1 AM. Dress code: summer elegance, flowing fabrics, soft pastels, wide-brimmed hats. 16+ recommended. F&B by card/cash. Transformation story link in P.S. Signed by MV U Team.", "Prep_Notification_Date": "2026-07-22"}, {"ID": "26", "Sequence": "During Event Week 2", "Email_Name": "Feedback Week 2", "Audience": "All Valid Ticket Holders", "Subject_Line": "Share Your Feedback About Week 2 & Win a Ticket for MVU 2027 🌟", "Proposed_Send_Date": "2026-08-01", "Day_of_Week": "Saturday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Feedback survey link", "Notes": "Collect Week 2 feedback. Prize: 2 x MVU 2027 tickets.", "Priority": "High", "Copy_2026": "Hi [First Name],\n\nYour voice matters — and we'd love to hear it.\n\nWe're gathering feedback on your experience of Week 2 at Mindvalley U 2026 to help us make next year's event even more extraordinary.\n\n✨ As a thank you, everyone who submits their feedback about Week 2 will be entered into a draw to select two winners for Mindvalley U 2027.\n\n📌 Important: If you choose to remain anonymous, you are welcome to share your feedback — but please note that anonymous entries cannot participate in the draw, as we'll have no way to contact you.\n\n📝 Share your feedback here: [Survey Link]\n\nYour insights will help us shape the magic of next year's event.\n\nThank you for co-creating this journey with us.\n\nWith gratitude,\nThe Mindvalley U Team", "Reference_2025_Copy": "[Aug 16, 2025 — Feedback Week 2]\nAudience: All Valid Ticket Holders\nSubject: Share Your Feedback About Week 2 & Win a Ticket for Mindvalley U 2026 🌟\nKey content: Week 2 feedback collection. Prize: 2 x MVU 2026 tickets. Anonymous entries can't enter draw. Survey link. Signed by MV U Team.", "Prep_Notification_Date": "2026-07-25"}, {"ID": "27", "Sequence": "During Event Week 2", "Email_Name": "Closing Party", "Audience": "All Valid Ticket Holders", "Subject_Line": "Tonight: The Grand Finale — [Closing Party Theme TBD] 🎷", "Proposed_Send_Date": "2026-08-01", "Day_of_Week": "Saturday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Venue details + map link", "Notes": "Closing party. Biggest party of the event.", "Priority": "High", "Copy_2026": "Hi [First Name],\n\nTonight is the night.\n\nThe grand finale of Mindvalley U 2026 — and we're going all in.\n\n🎷 [Closing Party Theme TBD]\n\n📍 Location: [Venue TBD], Tallinn\n🕗 Time: 8:30 PM – 2:00 AM\n\n[Theme description TBD — atmosphere, energy, what to expect]\n\nWith live sets by [DJ/Artist lineup TBD], expect a high-vibe fusion of music, movement, and pure presence.\n\n👗 Dress code: [Aligned with party theme — details in Style Guide]\n\n✨ For Families: Kids will have a dedicated space and activities so younger guests can enjoy their own magic.\n🍽 Food & Drinks: Bring card or cash for purchases.\n🎟 Just wear your wristband for entry.\n\nThis isn't just a party — it's THE night. Electric. Elevated. Unforgettable.\n\nSee you on the dance floor.\n\nWith love,\nThe Mindvalley U Team", "Reference_2025_Copy": "[No separate closing party email in 2025 — closing party info was included in Welcome to Week 2 email]\nThe Roaring 1920s closing party at Het Sieraad, Aug 16, 8:30 PM-2 AM. Gatsby theme: sequins, feathers, tuxedos. DJs: Vic Halley, Tristan Gorski, Niraj Naik, Laura Poldvere.", "Prep_Notification_Date": "2026-07-25"}, {"ID": "28", "Sequence": "Post Event", "Email_Name": "Photos (Regular Ticket Holders)", "Audience": "All Valid Ticket Holders (except VIP)", "Subject_Line": "Relive the Magic: Your Mindvalley U 2026 Photos Are Here 📸", "Proposed_Send_Date": "2026-08-08", "Day_of_Week": "Saturday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Photo album links", "Notes": "Share photo galleries. Privacy reminder about children.", "Priority": "High", "Copy_2026": "Hey [First Name],\n\nWhat an unforgettable summer we've just shared at Mindvalley U 2026. 💛\n\nFrom powerful sessions to deep connections and those magical nights under the Baltic sky — every moment is now part of our shared story. And the best part? You can revisit it anytime.\n\n📸 Mindvalley U 2026 Photo Albums\n\n👉 Week 1 MVU Photo Album: [Link]\n👉 Week 2 MVU Photo Album: [Link]\n\nA special shoutout goes to our exceptional team of photographers: [Photographer names TBD].\n\nDon't forget to use the hashtag #MVU and tag @mindvalley when posting your photos.\n\nFind yourself, your friends, and your favorite memories — and share the joy with your tribe.\n\n⚠️ Please only share photos that include you, and kindly avoid sharing images of others, especially children, to respect everyone's privacy.\n\nThese photos are more than snapshots; they're reminders of the breakthroughs, the laughter, the hugs, and the energy we co-created together.\n\nHere's to keeping that spirit alive until we meet again. ✨\n\nWith love,\nThe Mindvalley U Team", "Reference_2025_Copy": "[Aug 22, 2025 — Event Photos Regular]\nAudience: All Valid Ticket Holders (except VIP)\nSubject: 📸 Relive the Magic: Your Mindvalley U 2025 Photos Are Here\nKey content: Photo album links for Week 1 and Week 2. VIP party album links included. Photographer credits. Hashtag #MVU + @mindvalley tag. Privacy reminder re: children's photos. Signed by MV U Team.", "Prep_Notification_Date": "2026-08-01"}, {"ID": "29", "Sequence": "Post Event", "Email_Name": "Photos (VIP version)", "Audience": "VIP Ticket Holders", "Subject_Line": "Relive Your VIP Experience With The Official Event Photos 🤩", "Proposed_Send_Date": "2026-08-08", "Day_of_Week": "Saturday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Photo album links (including VIP party albums)", "Notes": "VIP-specific photo email with VIP party albums. Mention recordings coming.", "Priority": "High", "Copy_2026": "Dear [First Name],\n\nWhat an unforgettable summer we've just shared at Mindvalley U 2026. 💛\n\nFrom powerful sessions to deep connections and those magical nights under the Baltic sky — every moment is now part of our shared story. And the best part? You can revisit it anytime.\n\n📸 Mindvalley U 2026 Photo Albums\n\n👉 Week 1 MVU Photo Album: [Link]\n👉 Week 2 MVU Photo Album: [Link]\n\n📸 VIP Ticket Holders Photo Albums\n\n👉 Week 1 VIP Party [Theme]: [Link]\n👉 Week 2 VIP Party [Theme]: [Link]\n\nA special shoutout goes to our exceptional team of photographers: [Photographer names TBD].\n\nDon't forget to use the hashtag #MVU and tag @mindvalley when posting your photos.\nFind yourself, your friends, and your favorite memories — and share the joy with your tribe.\n\nThese photos are more than snapshots; they're reminders of the breakthroughs, the laughter, the hugs, and the energy we co-created together.\n\nHere's to keeping that spirit alive until we meet again. ✨\n\nWith love,\nThe Mindvalley U Team\n\nP.S. For VIP and First-Class Ticket Holders Only: All session recordings will be shared with you by email once the editing and uploading process is complete. This may take a few weeks — but rest assured, you'll be the first to know the moment they're ready.", "Reference_2025_Copy": "[Aug 22, 2025 — VIP Event Photos]\nAudience: VIP Ticket Holders\nSubject: Relive Your VIP Experience With The Official Event Photos 🤩\nKey content: Same as regular but with VIP party albums (On Cloud 9 Week 1, Summer By The Park Week 2). P.S. about session recordings being shared later (VIP + FC perk). Signed by MV U Team.", "Prep_Notification_Date": "2026-08-01"}, {"ID": "30", "Sequence": "Post Event", "Email_Name": "Feedback Reminder / Final Call", "Audience": "All Valid Ticket Holders", "Subject_Line": "Final Call: Share Your Mindvalley U Feedback (Deadline Aug 11) ✨", "Proposed_Send_Date": "2026-08-09", "Day_of_Week": "Sunday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Week 1 + Week 2 survey links", "Notes": "Final push for feedback. Deadline ~3 days later.", "Priority": "Medium", "Copy_2026": "Dear [First Name],\n\nYour voice helps shape the future of Mindvalley U. 🌍\n\nIf you haven't already, we'd love to hear about your experience this year. Your reflections help us create even more impactful sessions, connections, and magical moments for years to come.\n\n👉 If you joined Week 1, please fill out your survey here: [Link]\n👉 If you joined Week 2, please fill out your survey here: [Link]\n👉 If you joined both weeks, please complete both surveys.\n\n📌 Note: Ratings for individual speaker sessions should be left directly in the Mindvalley Agenda App under \"My Calendar.\"\n\n💛 Deadline: August 11th\n🎁 As a thank you, everyone who submits feedback will be entered into a draw to select four winners for Mindvalley U 2027. (If you choose to remain anonymous, your feedback will still count, but you won't be eligible for the draw.)\n\nThank you for helping us co-create this journey — we look forward to hearing your thoughts.\n\nWith gratitude,\nThe Mindvalley U Team", "Reference_2025_Copy": "[Aug 23, 2025 — Feedback Reminder]\nAudience: All Valid Ticket Holders\nSubject: ✨ Final Call: Share Your Mindvalley U Feedback (Deadline Aug 25)\nKey content: Final feedback push. Separate links for Week 1 and Week 2 surveys (complete both if attended both). Session ratings in Agenda App. Deadline Aug 25. Prize: 4 x MVU 2026 tickets. Anonymous can submit but can't enter draw. Signed by MV U Team.", "Prep_Notification_Date": "2026-08-02"}, {"ID": "31", "Sequence": "Post Event", "Email_Name": "VIP Customer Interviews", "Audience": "VIP Ticket Holders", "Subject_Line": "Got 20 Minutes? We'd Love to Chat 💬", "Proposed_Send_Date": "2026-09-28", "Day_of_Week": "Monday", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Booking links by timezone / form", "Notes": "Schedule 20-min interviews with VIP holders.", "Priority": "Medium", "Copy_2026": "Hey [First Name],\n\nWe're still glowing from the energy of our time together at Mindvalley U in Tallinn... and if you're reading this, you're one of our cherished VIPs who we'd like to hear from.\n\nWe're currently doing something a little special. Between October 5-16, we're inviting a select few VIP ticket holders to have a personal 20-minute interview with our team.\n\n🎯 Why are we doing this?\n\nBecause at Mindvalley, we don't just listen to our VIPs — we build around them.\n\nYour feedback doesn't go into a spreadsheet. It shapes the future of how we design, elevate, and deliver world-class experiences at our events.\n\nYou've seen what Mindvalley can create... now imagine helping us make it even better.\n\nIf you're based in:\n🌎 US or EU — Book your call with [Name] directly on this link: [Link]\n🌏 Asia or UAE — Book your call with [Name] directly on this link: [Link]\n🌍 Somewhere else in the world or unsure? 👉 Just fill out this quick form and we'll take care of the rest: [Link]\n\nWe'll coordinate the call at a time that works for both you and us.\n\nAnd hey — we promise this won't feel like \"feedback.\" It'll feel more like a meaningful chat over coffee (minus the caffeine jitters).\n\nThank you for being such a vital part of our movement. We can't wait to connect with you soon. 💛\n\nWith love,\nThe Mindvalley Events Team", "Reference_2025_Copy": "[Oct 13, 2025 — VIP Customer Interviews]\nAudience: VIP Ticket Holders\nSubject: Got 20 Minutes? We'd Love to Chat 💬\nKey content: Invited VIP holders to 20-min interviews (Oct 15-24). Two booking links by region (US/EU with Anastasia, Asia/UAE with Ramya). Fallback form for other regions. Positioned as shaping future experiences, not just feedback. Casual tone ('chat over coffee'). Signed by MV Events Team.", "Prep_Notification_Date": "2026-09-21"}, {"ID": "32", "Sequence": "Pre-Event Engagement", "Email_Name": "Supercoach Volunteers (if applicable)", "Audience": "Waitlisted Volunteer Database", "Subject_Line": "MVU Volunteer Team Is Full — But Another Opportunity Awaits 💫", "Proposed_Send_Date": "TBD", "Day_of_Week": "TBD", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Reply to express interest", "Notes": "Only send if Supercoach or similar event runs alongside MVU 2026.", "Priority": "Low", "Copy_2026": "Hey [First Name],\n\nThank you so much for your enthusiasm to volunteer at Mindvalley University 2026 — we've been truly touched by the amazing response.\n\nOur MVU volunteer team is now complete, and while we weren't able to offer you a spot for Tallinn, we'd love to invite you to something just as powerful.\n\n🌟 [Event Name TBD]\n📍 Happening in Tallinn\n📅 [Dates TBD] (during MVU!)\n\nWe're currently building a dream team of volunteers for this transformational event.\n\nIf you're still excited to be part of something truly meaningful this summer — and you'll be in Tallinn — we'd be thrilled to have you join us.\n\n👉 Interested? Just hit reply and let us know by [deadline TBD].\n\nThank you again for being such a valued part of our community. And who knows? The waitlist has a funny way of opening up sometimes... 😉\n\nWith appreciation,\n[Volunteer Coordinator Name]\nMindvalley University Volunteer Coordinator\n\nP.S. Whether it's at MVU or another event in the future — thank you for raising your hand to serve. We see you. 💛", "Reference_2025_Copy": "[May 21, 2025 — Supercoach Volunteer Open Call]\nAudience: Waitlisted Volunteer Database\nSubject: Mindvalley University Team Is Full – But Another Opportunity Awaits 💫\nKey content: MVU volunteer team full. Redirected to Supercoach Summit 2025 (Amsterdam, Aug 9-10). Asked for reply by Jun 1. Encouraging tone. Signed by Silvia Teras, Volunteer Coordinator.", "Prep_Notification_Date": "TBD"}, {"ID": "33", "Sequence": "Pre-Event Engagement", "Email_Name": "Eventex Voting (if applicable)", "Audience": "Six App Networks + Volunteer Groups + Social", "Subject_Line": "Eventex Voting Is Open — Support Mindvalley! 🎉", "Proposed_Send_Date": "TBD", "Day_of_Week": "TBD", "Status": "To Do", "CTA_Type": "Link", "CTA_Description": "Voting link", "Notes": "Only if Mindvalley is nominated in 2026. Social/community push.", "Priority": "Low", "Copy_2026": "Exciting news! The public voting for Eventex People's Choice Awards 2026 is now open! 🎉\n\nMindvalley has been nominated, and we'd love to have your support.\n\nCast your vote and help us celebrate the work we do in crafting transformative experiences!\n\n👉 Vote now: [Voting Link]\n🗳️ Public voting closes on [Deadline TBD].\n\nLet's spread the word! 🚀\n\n#EventexAwards #Mindvalley #VoteForUs", "Reference_2025_Copy": "[Mar 20, 2025 — Eventex]\nAudience: Six App Networks, Active Volunteer WhatsApp groups, Facebook\nSubject: Eventex voting is open\nKey content: Eventex People's Choice Awards 2025 nomination. Voting link. Deadline Apr 8. Also had internal version for MV Team asking them to vote and share. Social/community post format.", "Prep_Notification_Date": "TBD"}];
+
+// ============================================================
+// AUDIENCE COLOR MAP
+// ============================================================
+const AUDIENCE_COLORS = {
+  'All Valid Ticket Holders': { class: 'chip-all', color: '#7c3aed', label: 'All Tickets' },
+  'All Valid Ticket Holders (except VIP)': { class: 'chip-all', color: '#7c3aed', label: 'All (ex-VIP)' },
+  'All Valid Ticket Holders (non-VIP/FC)': { class: 'chip-all', color: '#7c3aed', label: 'All (non-VIP/FC)' },
+  'VIP Ticket Holders': { class: 'chip-vip', color: '#d4a843', label: 'VIP' },
+  'VIP + First-Class Ticket Holders': { class: 'chip-vipfc', color: '#d4a843', label: 'VIP + FC' },
+  'First-Class Ticket Holders': { class: 'chip-fc', color: '#f59e0b', label: 'First Class' },
+  'Youth Programs Ticket Holders': { class: 'chip-youth', color: '#34d399', label: 'Youth' },
+  'General Volunteer Database': { class: 'chip-volunteer', color: '#06b6d4', label: 'Volunteers' },
+  'Volunteer Database': { class: 'chip-volunteer', color: '#06b6d4', label: 'Volunteers' },
+  'Waitlisted Volunteer Database': { class: 'chip-volunteer', color: '#06b6d4', label: 'Waitlisted Vol.' },
+  'All Past Event Attendees': { class: 'chip-past', color: '#9a93b0', label: 'Past Attendees' },
+  'Six App Networks + Volunteer Groups + Social': { class: 'chip-other', color: '#60a5fa', label: 'Social/Community' },
+  'Buyers with Unassigned Tickets': { class: 'chip-other', color: '#f472b6', label: 'Unassigned Tickets' },
+  'Parents with Youth Program Tickets': { class: 'chip-youth', color: '#34d399', label: 'Youth Parents' },
+  'All Valid Ticket Holders (No Youth Program)': { class: 'chip-all', color: '#7c3aed', label: 'All (no Youth)' },
+};
+
+function getAudienceInfo(audience) {
+  return AUDIENCE_COLORS[audience] || { class: 'chip-other', color: '#60a5fa', label: audience.substring(0, 20) };
+}
+
+const PRIORITY_COLORS = {
+  'Critical': 'var(--red)',
+  'High': 'var(--orange)',
+  'Medium': 'var(--blue)',
+  'Low': 'var(--text-muted)',
+};
+
+const SEQUENCE_EMOJI = {
+  'Pre-Event Engagement': '📢',
+  'Pre-Event Last Mile': '🚀',
+  'During Event Week 1': '⚡',
+  'During Event Week 2': '⚡',
+  'Post Event': '📬',
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let allData = [];
+let filteredData = [];
+let currentMonth = new Date(2026, 1); // Feb 2026
+let activeFilters = { audience: [], sequence: [], priority: [] };
+let currentView = 'calendar';
+
+// ============================================================
+// DATA LOADING
+// ============================================================
+async function loadData() {
+  if (CONFIG.USE_AIRTABLE && CONFIG.AIRTABLE_TOKEN) {
+    try {
+      const records = await fetchAirtable();
+      allData = records;
+      updateSyncBadge(true);
+    } catch (e) {
+      console.warn('Airtable fetch failed, using embedded data:', e);
+      allData = EMBEDDED_DATA;
+      updateSyncBadge(false);
+    }
+  } else {
+    allData = EMBEDDED_DATA;
+    updateSyncBadge(false);
+  }
+  applyFilters();
+  render();
+}
+
+async function fetchAirtable() {
+  let all = [];
+  let offset = null;
+  do {
+    const url = `https://api.airtable.com/v0/${CONFIG.AIRTABLE_BASE_ID}/${CONFIG.AIRTABLE_TABLE_ID}?pageSize=100` + (offset ? `&offset=${offset}` : '');
+    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${CONFIG.AIRTABLE_TOKEN}` } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    json.records.forEach(r => all.push(r.fields));
+    offset = json.offset;
+  } while (offset);
+  return all;
+}
+
+function updateSyncBadge(connected) {
+  const dot = document.getElementById('statusDot');
+  const text = document.getElementById('syncText');
+  if (connected) {
+    dot.className = 'status-dot connected';
+    text.textContent = `Airtable · synced ${new Date().toLocaleTimeString()}`;
+  } else {
+    dot.className = 'status-dot offline';
+    text.textContent = 'Offline mode · embedded data';
+  }
+}
+
+// ============================================================
+// FILTERS
+// ============================================================
+function buildFilters() {
+  const bar = document.getElementById('filtersBar');
+  const audiences = [...new Set(allData.map(d => d.Audience))].sort();
+  const sequences = ['Pre-Event Engagement', 'Pre-Event Last Mile', 'During Event Week 1', 'During Event Week 2', 'Post Event'];
+  const priorities = ['Critical', 'High', 'Medium', 'Low'];
+
+  bar.innerHTML = `
+    <div class="filter-group">
+      <label>Sequence</label>
+      <div class="filter-pills">
+        ${sequences.map(s => `<span class="pill" data-filter="sequence" data-value="${s}">${SEQUENCE_EMOJI[s] || ''} ${s.replace('Pre-Event ', '').replace('During Event ', '')}</span>`).join('')}
+      </div>
+    </div>
+    <div class="filter-group">
+      <label>Priority</label>
+      <div class="filter-pills">
+        ${priorities.map(p => `<span class="pill" data-filter="priority" data-value="${p}" style="--pill-color:${PRIORITY_COLORS[p]}">${p}</span>`).join('')}
+      </div>
+    </div>
+    <div class="filter-group">
+      <label>Audience</label>
+      <div class="filter-pills">
+        ${audiences.map(a => {
+          const info = getAudienceInfo(a);
+          return `<span class="pill" data-filter="audience" data-value="${a}">${info.label}</span>`;
+        }).join('')}
+      </div>
+    </div>
+  `;
+
+  bar.querySelectorAll('.pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      const type = pill.dataset.filter;
+      const value = pill.dataset.value;
+      const idx = activeFilters[type].indexOf(value);
+      if (idx >= 0) {
+        activeFilters[type].splice(idx, 1);
+        pill.classList.remove('active');
+      } else {
+        activeFilters[type].push(value);
+        pill.classList.add('active');
+      }
+      applyFilters();
+      render();
+    });
+  });
+}
+
+function applyFilters() {
+  filteredData = allData.filter(d => {
+    if (activeFilters.audience.length && !activeFilters.audience.includes(d.Audience)) return false;
+    if (activeFilters.sequence.length && !activeFilters.sequence.includes(d.Sequence)) return false;
+    if (activeFilters.priority.length && !activeFilters.priority.includes(d.Priority)) return false;
+    return true;
+  });
+}
+
+// ============================================================
+// KPI
+// ============================================================
+function renderKPIs() {
+  const total = filteredData.length;
+  const byStatus = {};
+  filteredData.forEach(d => { byStatus[d.Status] = (byStatus[d.Status] || 0) + 1; });
+  const critical = filteredData.filter(d => d.Priority === 'Critical').length;
+  const high = filteredData.filter(d => d.Priority === 'High').length;
+
+  // Next upcoming
+  const today = new Date().toISOString().split('T')[0];
+  const upcoming = filteredData
+    .filter(d => d.Proposed_Send_Date && d.Proposed_Send_Date !== 'TBD' && d.Proposed_Send_Date >= today)
+    .sort((a, b) => a.Proposed_Send_Date.localeCompare(b.Proposed_Send_Date))[0];
+
+  document.getElementById('kpiRow').innerHTML = `
+    <div class="kpi-card">
+      <div class="kpi-value gold">${total}</div>
+      <div class="kpi-label">Total Emails</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value purple">${byStatus['To Do'] || 0}</div>
+      <div class="kpi-label">To Do</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value orange">${byStatus['In Review'] || 0}</div>
+      <div class="kpi-label">In Review</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value blue">${byStatus['Confirmed'] || 0}</div>
+      <div class="kpi-label">Confirmed</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value" style="color:#c084fc">${byStatus['Scheduled'] || 0}</div>
+      <div class="kpi-label">Scheduled</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value green">${byStatus['Sent'] || 0}</div>
+      <div class="kpi-label">Sent</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value red">${critical + high}</div>
+      <div class="kpi-label">High Priority</div>
+    </div>
+    <div class="kpi-card" style="border-top: 2px solid var(--gold)">
+      <div class="kpi-value gold" style="font-size:1rem;font-weight:600">${upcoming ? upcoming.Email_Name.substring(0, 25) : '—'}</div>
+      <div class="kpi-label">${upcoming ? upcoming.Proposed_Send_Date : 'No upcoming'}</div>
+    </div>
+  `;
+}
+
+// ============================================================
+// LEGEND
+// ============================================================
+function renderLegend() {
+  const usedAudiences = [...new Set(filteredData.map(d => d.Audience))];
+  document.getElementById('legend').innerHTML = usedAudiences.map(a => {
+    const info = getAudienceInfo(a);
+    return `<div class="legend-item"><div class="legend-color" style="background:${info.color}"></div>${info.label}</div>`;
+  }).join('');
+}
+
+// ============================================================
+// CALENDAR VIEW
+// ============================================================
+function renderCalendar() {
+  const container = document.getElementById('calendarView');
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const dayNames = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  let startDay = firstDay.getDay() - 1;
+  if (startDay < 0) startDay = 6;
+
+  // Group emails by date
+  const emailsByDate = {};
+  filteredData.forEach(d => {
+    if (!d.Proposed_Send_Date || d.Proposed_Send_Date === 'TBD') return;
+    if (!emailsByDate[d.Proposed_Send_Date]) emailsByDate[d.Proposed_Send_Date] = [];
+    emailsByDate[d.Proposed_Send_Date].push(d);
+  });
+
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  let html = `
+    <div class="month-header">
+      <div class="month-nav">
+        <button onclick="navMonth(-1)">‹</button>
+      </div>
+      <div class="month-title">${monthNames[month]} ${year}</div>
+      <div class="month-nav">
+        <button onclick="navMonth(1)">›</button>
+      </div>
+    </div>
+    <div class="month-grid">
+      ${dayNames.map(d => `<div class="day-header">${d}</div>`).join('')}
+  `;
+
+  // Empty cells before first day
+  for (let i = 0; i < startDay; i++) {
+    html += `<div class="day-cell empty"></div>`;
+  }
+
+  // Day cells
+  for (let day = 1; day <= lastDay.getDate(); day++) {
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const isToday = dateStr === todayStr;
+    const emails = emailsByDate[dateStr] || [];
+
+    html += `<div class="day-cell${isToday ? ' today' : ''}">
+      <div class="day-number">${day}</div>
+      ${emails.map(e => {
+        const info = getAudienceInfo(e.Audience);
+        return `<div class="email-chip ${info.class}" onclick='openModal(${JSON.stringify(e.ID).replace(/'/g, "\'")})'
+          title="${e.Email_Name}">
+          ${e.Email_Name.substring(0, 22)}${e.Email_Name.length > 22 ? '…' : ''}
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+function navMonth(delta) {
+  currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + delta);
+  renderCalendar();
+}
+
+// ============================================================
+// TIMELINE VIEW
+// ============================================================
+function renderTimeline() {
+  const container = document.getElementById('timelineView');
+
+  // Date range: Feb 2026 to Oct 2026
+  const startDate = new Date(2026, 1, 1);
+  const endDate = new Date(2026, 9, 1);
+  const totalDays = (endDate - startDate) / (1000 * 60 * 60 * 24);
+
+  const monthNames = ['Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'];
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayDate = new Date();
+  const todayOffset = (todayDate - startDate) / (1000 * 60 * 60 * 24);
+  const todayPct = Math.max(0, Math.min(100, (todayOffset / totalDays) * 100));
+
+  // Group by audience
+  const groups = {};
+  filteredData.forEach(d => {
+    if (!d.Proposed_Send_Date || d.Proposed_Send_Date === 'TBD') return;
+    if (!groups[d.Audience]) groups[d.Audience] = [];
+    groups[d.Audience].push(d);
+  });
+
+  // Month labels
+  let monthsHtml = '<div class="timeline-months">';
+  for (let m = 1; m <= 8; m++) {
+    const mStart = new Date(2026, m, 1);
+    const mEnd = new Date(2026, m + 1, 0);
+    const left = ((mStart - startDate) / (1000 * 60 * 60 * 24) / totalDays) * 100;
+    const width = ((mEnd - mStart) / (1000 * 60 * 60 * 24) / totalDays) * 100;
+    monthsHtml += `<div class="timeline-month-label" style="width:${width}%;text-align:center">${monthNames[m-1]}</div>`;
+  }
+  monthsHtml += '</div>';
+
+  // Event period highlight
+  const eventStart = new Date(2026, 6, 20);
+  const eventEnd = new Date(2026, 7, 2);
+  const evLeft = ((eventStart - startDate) / (1000 * 60 * 60 * 24) / totalDays) * 100;
+  const evWidth = ((eventEnd - eventStart) / (1000 * 60 * 60 * 24) / totalDays) * 100;
+
+  let html = monthsHtml;
+
+  const sortedGroups = Object.keys(groups).sort((a, b) => {
+    const aFirst = groups[a].sort((x, y) => x.Proposed_Send_Date.localeCompare(y.Proposed_Send_Date))[0];
+    const bFirst = groups[b].sort((x, y) => x.Proposed_Send_Date.localeCompare(y.Proposed_Send_Date))[0];
+    return aFirst.Proposed_Send_Date.localeCompare(bFirst.Proposed_Send_Date);
+  });
+
+  for (const audience of sortedGroups) {
+    const info = getAudienceInfo(audience);
+    const emails = groups[audience];
+
+    html += `<div class="swimlane">
+      <div class="swimlane-label">
+        <span class="swimlane-dot" style="background:${info.color}"></span>
+        ${info.label}
+        <span style="color:var(--text-muted);font-weight:400;font-size:0.7rem">(${emails.length})</span>
+      </div>
+      <div class="swimlane-track" style="position:relative">
+        <div style="position:absolute;left:${evLeft}%;width:${evWidth}%;top:0;bottom:0;background:rgba(212,168,67,0.06);border-radius:4px;"></div>
+        ${todayPct > 0 && todayPct < 100 ? `<div class="today-marker" style="left:${todayPct}%"></div>` : ''}
+        ${emails.map(e => {
+          const eDate = new Date(e.Proposed_Send_Date + 'T00:00:00');
+          const left = ((eDate - startDate) / (1000 * 60 * 60 * 24) / totalDays) * 100;
+          return `<div class="timeline-block ${info.class}" style="left:${left}%;min-width:80px;"
+            onclick='openModal("${e.ID}")'
+            title="${e.Email_Name} — ${e.Proposed_Send_Date}">
+            ${e.Email_Name.substring(0, 18)}${e.Email_Name.length > 18 ? '…' : ''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+// ============================================================
+// MODAL
+// ============================================================
+function openModal(id) {
+  const email = allData.find(d => d.ID === id || d.ID === String(id));
+  if (!email) return;
+
+  const info = getAudienceInfo(email.Audience);
+
+  document.getElementById('modalTitle').textContent = email.Email_Name;
+  document.getElementById('modalSubject').textContent = `📧 ${email.Subject_Line}`;
+
+  document.getElementById('modalMeta').innerHTML = `
+    <span class="meta-tag" style="border-color:${info.color};color:${info.color};background:${info.color}15">${email.Audience}</span>
+    <span class="meta-tag" style="border-color:var(--purple);color:var(--purple-light);background:rgba(124,58,237,0.1)">${email.Sequence}</span>
+    <span class="meta-tag" style="border-color:${PRIORITY_COLORS[email.Priority]};color:${PRIORITY_COLORS[email.Priority]};background:transparent">${email.Priority}</span>
+    <span class="meta-tag" style="border-color:var(--card-border);color:var(--text-dim);background:transparent">📅 ${email.Proposed_Send_Date} (${email.Day_of_Week})</span>
+    <span class="meta-tag" style="border-color:var(--card-border);color:var(--text-dim);background:transparent">🔔 Notify: ${email.Prep_Notification_Date || '—'}</span>
+    <span class="meta-tag" style="border-color:var(--card-border);color:var(--text-dim);background:transparent">Status: ${email.Status}</span>
+  `;
+
+  let bodyHtml = '';
+
+  if (email.CTA_Description) {
+    bodyHtml += `
+      <div class="modal-section">
+        <div class="modal-section-title">CTA</div>
+        <div style="color:var(--text-dim);font-size:0.85rem">${email.CTA_Type}: ${email.CTA_Description}</div>
+      </div>`;
+  }
+
+  if (email.Notes) {
+    bodyHtml += `
+      <div class="modal-section">
+        <div class="modal-section-title">Notes</div>
+        <div style="color:var(--text-dim);font-size:0.85rem">${email.Notes}</div>
+      </div>`;
+  }
+
+  if (email.Copy_2026) {
+    bodyHtml += `
+      <div class="modal-section">
+        <div class="modal-section-title">Copy 2026 (Proposed)</div>
+        <div class="copy-block">${escapeHtml(email.Copy_2026)}</div>
+      </div>`;
+  }
+
+  if (email.Reference_2025_Copy) {
+    bodyHtml += `
+      <div class="modal-section">
+        <div class="modal-section-title">Reference 2025</div>
+        <div class="ref-block">${escapeHtml(email.Reference_2025_Copy)}</div>
+      </div>`;
+  }
+
+  document.getElementById('modalBody').innerHTML = bodyHtml;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ============================================================
+// VIEW TOGGLE
+// ============================================================
+document.querySelectorAll('.view-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentView = btn.dataset.view;
+    document.getElementById('calendarView').classList.toggle('active', currentView === 'calendar');
+    document.getElementById('timelineView').classList.toggle('active', currentView === 'timeline');
+    if (currentView === 'timeline') renderTimeline();
+  });
+});
+
+// Close modal on overlay click
+document.getElementById('modalOverlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+// Close on ESC
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+// ============================================================
+// RENDER
+// ============================================================
+function render() {
+  renderKPIs();
+  renderLegend();
+  renderCalendar();
+  if (currentView === 'timeline') renderTimeline();
+}
+
+// ============================================================
+// INIT
+// ============================================================
+loadData().then(() => {
+  buildFilters();
+
+  // Auto-refresh if Airtable is active
+  if (CONFIG.USE_AIRTABLE && CONFIG.AIRTABLE_TOKEN) {
+    setInterval(loadData, CONFIG.REFRESH_INTERVAL);
+  }
+});
+</script>
+</body>
+</html>

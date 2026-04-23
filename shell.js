@@ -1,15 +1,14 @@
 const frame = document.getElementById('contentFrame');
 const sidebar = document.getElementById('sidebar');
 const eventNav = document.getElementById('eventNavItems');
-const navGlobal = document.getElementById('navGlobal');
 
 async function loadNav() {
   try {
     const res = await fetch('dashboards.json');
     const data = await res.json();
-    data.eventDashboards.forEach(d => {
+    data.eventDashboards.forEach((d, i) => {
       const a = document.createElement('a');
-      a.className = 'nav-item';
+      a.className = 'nav-item' + (i === 0 ? ' active' : '');
       a.dataset.view = d.path;
       a.innerHTML = `<span class="nav-icon">${d.icon}</span><span class="nav-label">${d.label}</span><span class="nav-desc">${d.description}</span>`;
       eventNav.appendChild(a);
@@ -31,8 +30,6 @@ function navigate(path) {
   });
   sidebar.classList.remove('open');
 }
-
-navGlobal.addEventListener('click', () => navigate('views/global/index.html'));
 
 document.getElementById('hamburger').addEventListener('click', () => {
   sidebar.classList.toggle('open');

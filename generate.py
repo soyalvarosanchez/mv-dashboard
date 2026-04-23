@@ -542,7 +542,7 @@ if __name__ == "__main__":
     promo_pages = [
         ("Crew - Mindvalley Team", "🎫", "mycrewpass", crew_list, True),
         ("Volunteers", "🙋", "volunteers", vol_list, False),
-        ("Hexagon", "⬡", "hexagon", hex_list, False),
+        ("Hexagon", "🌟", "hexagon", hex_list, False),
     ]
     for name, emoji, slug, plist, flag_non_mv in promo_pages:
         path = f"event-dashboards/mvu-2026/{slug}.html"

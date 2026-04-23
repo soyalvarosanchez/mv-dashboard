@@ -475,8 +475,13 @@ def render_promo_page(emoji, title, plist, flag_non_mv=False):
     else:
         rows = ""
         for p in plist:
-            flag = ' <span class="flag-ext">external</span>' if (flag_non_mv and not p["is_mv"]) else ""
-            rows += f"<tr><td>{p['name']}{flag}</td><td>{p['week']}</td></tr>\n"
+            if flag_non_mv and not p["is_mv"]:
+                badge = ' <span class="flag-ext">external</span>'
+            elif flag_non_mv and p["is_mv"]:
+                badge = ' <img src="https://www.mindvalley.com/favicon.ico" class="mv-icon" alt="MV">'
+            else:
+                badge = ""
+            rows += f"<tr><td>{p['name']}{badge}</td><td>{p['week']}</td></tr>\n"
         body = f"""<table>
 <thead><tr><th>Name</th><th>Weeks</th></tr></thead>
 <tbody>{rows}</tbody>
@@ -501,6 +506,7 @@ th{{text-align:left;padding:10px 14px;color:var(--text-dim);font-size:.75rem;tex
 td{{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04)}}
 tr:hover td{{background:rgba(255,255,255,.03)}}
 .flag-ext{{display:inline-block;background:#f87171;color:#fff;font-size:.65rem;padding:1px 6px;border-radius:4px;margin-left:6px;font-weight:600;vertical-align:middle}}
+.mv-icon{{width:16px;height:16px;margin-left:6px;vertical-align:middle;border-radius:2px}}
 .empty{{text-align:center;padding:48px;color:var(--text-dim);font-size:1rem;background:var(--card);border-radius:16px;border:1px solid rgba(255,255,255,.06)}}
 </style>
 </head>
@@ -534,12 +540,11 @@ if __name__ == "__main__":
 
     # Generate separate promo pages
     promo_pages = [
-        ("MyCrewPass", "🎫", crew_list, True),
-        ("Volunteers", "🙋", vol_list, False),
-        ("Hexagon", "⬡", hex_list, False),
+        ("Crew - Mindvalley Team", "🎫", "mycrewpass", crew_list, True),
+        ("Volunteers", "🙋", "volunteers", vol_list, False),
+        ("Hexagon", "⬡", "hexagon", hex_list, False),
     ]
-    for name, emoji, plist, flag_non_mv in promo_pages:
-        slug = name.lower().replace(" ", "-")
+    for name, emoji, slug, plist, flag_non_mv in promo_pages:
         path = f"event-dashboards/mvu-2026/{slug}.html"
         with open(path, "w", encoding="utf-8") as f:
             f.write(render_promo_page(emoji, name, plist, flag_non_mv))

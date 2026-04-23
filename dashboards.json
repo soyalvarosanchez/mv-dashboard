@@ -5,7 +5,28 @@
       "label": "Mindvalley U 2026",
       "icon": "🎓",
       "path": "event-dashboards/mvu-2026/index.html",
-      "description": "Tallinn, Estonia"
+      "description": "Dashboard"
+    },
+    {
+      "id": "mvu-2026-crewpass",
+      "label": "MyCrewPass",
+      "icon": "🎫",
+      "path": "event-dashboards/mvu-2026/mycrewpass.html",
+      "description": ""
+    },
+    {
+      "id": "mvu-2026-volunteers",
+      "label": "Volunteers",
+      "icon": "🙋",
+      "path": "event-dashboards/mvu-2026/volunteers.html",
+      "description": ""
+    },
+    {
+      "id": "mvu-2026-hexagon",
+      "label": "Hexagon",
+      "icon": "⬡",
+      "path": "event-dashboards/mvu-2026/hexagon.html",
+      "description": ""
     }
   ]
 }

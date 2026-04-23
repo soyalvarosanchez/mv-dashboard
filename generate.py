@@ -438,9 +438,7 @@ def render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_l
     {cat_card("🎫", "Regular (Adult)", reg)}
   </div>
 
-  {promo_section("🎫", "MyCrewPass", crew_list, flag_non_mv=True)}
-  {promo_section("🙋", "Volunteers", vol_list)}
-  {promo_section("⬡", "Hexagon", hex_list)}
+
 </div>
 
 <script>
@@ -470,6 +468,51 @@ def render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_l
 </body>
 </html>"""
 
+def render_promo_page(emoji, title, plist, flag_non_mv=False):
+    now_str = datetime.now(tz=timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
+    if not plist:
+        body = '<div class="empty">No registrations yet</div>'
+    else:
+        rows = ""
+        for p in plist:
+            flag = ' <span class="flag-ext">external</span>' if (flag_non_mv and not p["is_mv"]) else ""
+            rows += f"<tr><td>{p['name']}{flag}</td><td>{p['week']}</td></tr>\n"
+        body = f"""<table>
+<thead><tr><th>Name</th><th>Weeks</th></tr></thead>
+<tbody>{rows}</tbody>
+</table>"""
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>{title} — MVU 2026</title>
+<style>
+:root{{--bg:#0b0a1a;--card:#14122a;--text:#e2e0f0;--text-dim:#7a7793;--gold:#d4a843;--purple:#7c3aed}}
+*{{margin:0;padding:0;box-sizing:border-box}}
+body{{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;min-height:100vh}}
+.container{{max-width:900px;margin:0 auto;padding:32px 24px}}
+h1{{font-size:1.6rem;margin-bottom:4px}}
+h1 span.emoji{{font-size:1.4rem;margin-right:8px}}
+.count{{display:inline-block;background:var(--purple);color:#fff;font-size:.8rem;padding:3px 10px;border-radius:10px;margin-left:8px;font-weight:700}}
+.meta{{font-size:.8rem;color:var(--text-dim);margin-bottom:24px}}
+table{{width:100%;border-collapse:collapse;font-size:.9rem}}
+th{{text-align:left;padding:10px 14px;color:var(--text-dim);font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid rgba(255,255,255,.1)}}
+td{{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04)}}
+tr:hover td{{background:rgba(255,255,255,.03)}}
+.flag-ext{{display:inline-block;background:#f87171;color:#fff;font-size:.65rem;padding:1px 6px;border-radius:4px;margin-left:6px;font-weight:600;vertical-align:middle}}
+.empty{{text-align:center;padding:48px;color:var(--text-dim);font-size:1rem;background:var(--card);border-radius:16px;border:1px solid rgba(255,255,255,.06)}}
+</style>
+</head>
+<body>
+<div class="container">
+<h1><span class="emoji">{emoji}</span>{title}{f' <span class="count">{len(plist)}</span>' if plist else ''}</h1>
+<div class="meta">Mindvalley U 2026 · Data snapshot: {now_str}</div>
+{body}
+</div>
+</body>
+</html>"""
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("🔐 Authenticating...")
@@ -488,6 +531,19 @@ if __name__ == "__main__":
     os.makedirs("event-dashboards/mvu-2026", exist_ok=True)
     with open("event-dashboards/mvu-2026/index.html", "w", encoding="utf-8") as f:
         f.write(html)
+
+    # Generate separate promo pages
+    promo_pages = [
+        ("MyCrewPass", "🎫", crew_list, True),
+        ("Volunteers", "🙋", vol_list, False),
+        ("Hexagon", "⬡", hex_list, False),
+    ]
+    for name, emoji, plist, flag_non_mv in promo_pages:
+        slug = name.lower().replace(" ", "-")
+        path = f"event-dashboards/mvu-2026/{slug}.html"
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(render_promo_page(emoji, name, plist, flag_non_mv))
+        print(f"   {name}: {len(plist)} registrations -> {path}")
 
     print("✅ Done!")
     print(f"   Valid tickets: {hero['valid_total']}")

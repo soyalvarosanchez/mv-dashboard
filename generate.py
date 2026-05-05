@@ -11,7 +11,8 @@ from datetime import datetime, timezone, timedelta
 CLIENT_ID     = os.environ["BIZZABO_CLIENT_ID"]
 CLIENT_SECRET = os.environ["BIZZABO_CLIENT_SECRET"]
 ACCOUNT_ID    = os.environ.get("BIZZABO_ACCOUNT_ID", "129966")
-EVENT_ID      = os.environ.get("BIZZABO_EVENT_ID",   "754649")
+EVENT_ID      = os.environ.get("BIZZABO_EVENT_ID",   "754649")  # MVU 2026
+EVENT_ID_2025 = os.environ.get("BIZZABO_EVENT_ID_2025", "619441")  # MVU 2025 (for YoY)
 CAPACITY      = 70   # pax per youth category per week
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -32,11 +33,11 @@ def get_token():
     return r.json()["access_token"]
 
 # ── Fetch all registrations ───────────────────────────────────────────────────
-def fetch_all(token):
+def fetch_all(token, event_id=EVENT_ID):
     regs, page = [], 0
     while True:
         r = requests.get(
-            f"https://api.bizzabo.com/v2/events/{EVENT_ID}/registrations",
+            f"https://api.bizzabo.com/v2/events/{event_id}/registrations",
             headers={"Authorization": f"Bearer {token}"},
             params={"size": 100, "page": page},
             timeout=30,
@@ -68,6 +69,68 @@ def parse_date(s):
         return datetime.fromisoformat(s)
     except Exception:
         return None
+
+# ── Paid vs Comped helper ─────────────────────────────────────────────────────
+def is_paid(r):
+    """A valid ticket is 'paid' if its price > 0; otherwise it's comped (free/complimentary)."""
+    for field in ("paidAmount", "totalPrice", "totalAmount", "amount", "price"):
+        v = r.get(field)
+        if v is None:
+            continue
+        try:
+            return float(v) > 0
+        except (TypeError, ValueError):
+            continue
+    # No price field available — fall back to promoCode heuristic (comp codes ⇒ comped)
+    promo = (r.get("promoCode") or "").lower()
+    if promo in ("mycrewpass", "volunteer2weeks", "hexagon"):
+        return False
+    return True  # Default: assume paid if no signals say otherwise
+
+# ── Refund-date helper ────────────────────────────────────────────────────────
+def get_refund_date(r):
+    """Try refund-related date fields, fall back to registrationDate."""
+    for field in ("refundDate", "refundedAt", "refundedDate", "cancelledAt",
+                  "lastModifiedDate", "modifiedDate"):
+        d = parse_date(r.get(field))
+        if d:
+            return d
+    return parse_date(r.get("registrationDate"))
+
+# ── Monthly buckets for YoY charts ────────────────────────────────────────────
+_MONTH_NAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+def monthly_buckets_full(event_year):
+    """
+    Returns 12 (label, start, end) tuples covering the full sales season:
+    Aug (event_year - 1) through Jul (event_year).
+    """
+    out = []
+    y, m = event_year - 1, 8
+    for _ in range(12):
+        start = datetime(y, m, 1, tzinfo=timezone.utc)
+        ny, nm = (y + 1, 1) if m == 12 else (y, m + 1)
+        end = datetime(ny, nm, 1, tzinfo=timezone.utc) - timedelta(seconds=1)
+        out.append((_MONTH_NAMES[m], start, end))
+        y, m = ny, nm
+    return out
+
+def per_month_count(records, buckets, date_getter, clamp_end=None):
+    """
+    For each (label, start, end) bucket, count records whose date falls in it.
+    If `clamp_end` is provided (e.g. today), buckets that start after it return None
+    (so the chart can break the line for future/missing months) and the bucket
+    containing clamp_end is truncated at it.
+    """
+    parsed = [date_getter(r) for r in records]
+    out = []
+    for (_, start, end) in buckets:
+        if clamp_end is not None and start > clamp_end:
+            out.append(None)
+            continue
+        eff_end = min(end, clamp_end) if clamp_end is not None else end
+        out.append(sum(1 for d in parsed if d and start <= d <= eff_end))
+    return out
 
 # ── Week assignment helper ────────────────────────────────────────────────────
 def get_week(reg):
@@ -112,6 +175,8 @@ def compute(regs):
     valid     = [r for r in regs if r.get("validity","").lower() == "valid"]
     refunded  = [r for r in regs if (r.get("paymentStatus") or "").lower() == "refunded"]
     unassigned_tickets = [r for r in valid if (r.get("formSubmissionStatus") or "").lower() == "unassigned"]
+    paid      = [r for r in valid if is_paid(r)]
+    comped    = [r for r in valid if not is_paid(r)]
 
     def recent(lst, since):
         return sum(1 for r in lst if (d := parse_date(r.get("registrationDate"))) and d >= since)
@@ -121,6 +186,10 @@ def compute(regs):
         "valid_total":    len(valid),
         "valid_7d":       recent(valid, d7),
         "valid_24h":      recent(valid, d24),
+        "paid_total":     len(paid),
+        "paid_7d":        recent(paid, d7),
+        "paid_24h":       recent(paid, d24),
+        "comped_total":   len(comped),
         "refund_total":   len(refunded),
         "refund_7d":      recent(refunded, d7),
         "refund_24h":     recent(refunded, d24),
@@ -181,9 +250,70 @@ def compute(regs):
 
     return hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list
 
+# ── Year-over-year time series ───────────────────────────────────────────────
+def compute_yoy(regs_2026, regs_2025=None):
+    """
+    Build cumulative monthly series for paid tickets and refunds, comparing
+    2025 (event 619441) and 2026 (event 754649). Each line covers Aug of the
+    prior year through today's month/day in the event year.
+    Returns a dict ready to be JSON-serialised into the HTML.
+    """
+    today = datetime.now(tz=timezone.utc)
+
+    paid_2026     = [r for r in regs_2026 if r.get("validity","").lower() == "valid" and is_paid(r)]
+    refunded_2026 = [r for r in regs_2026 if (r.get("paymentStatus") or "").lower() == "refunded"]
+
+    if regs_2025:
+        paid_2025     = [r for r in regs_2025 if r.get("validity","").lower() == "valid" and is_paid(r)]
+        refunded_2025 = [r for r in regs_2025 if (r.get("paymentStatus") or "").lower() == "refunded"]
+    else:
+        paid_2025, refunded_2025 = [], []
+
+    buckets_2026 = monthly_buckets_full(2026)
+    buckets_2025 = monthly_buckets_full(2025)
+
+    reg_date = lambda r: parse_date(r.get("registrationDate"))
+
+    # Apples-to-apples "to date" totals: Aug 1 → today's month/day in each event year
+    def to_date_count(records, event_year, date_getter):
+        start = datetime(event_year - 1, 8, 1, tzinfo=timezone.utc)
+        end   = datetime(event_year, today.month, today.day, 23, 59, 59, tzinfo=timezone.utc)
+        return sum(1 for r in records if (d := date_getter(r)) and start <= d <= end)
+
+    return {
+        "labels":        [b[0] for b in buckets_2026],
+        "paid_2025":     per_month_count(paid_2025,     buckets_2025, reg_date),
+        "paid_2026":     per_month_count(paid_2026,     buckets_2026, reg_date,        clamp_end=today),
+        "refunds_2025":  per_month_count(refunded_2025, buckets_2025, get_refund_date),
+        "refunds_2026":  per_month_count(refunded_2026, buckets_2026, get_refund_date, clamp_end=today),
+        "paid_2025_to_date":    to_date_count(paid_2025,     2025, reg_date),
+        "paid_2026_to_date":    to_date_count(paid_2026,     2026, reg_date),
+        "refunds_2025_to_date": to_date_count(refunded_2025, 2025, get_refund_date),
+        "refunds_2026_to_date": to_date_count(refunded_2026, 2026, get_refund_date),
+        "available_2025": bool(regs_2025),
+    }
+
 # ── HTML generation ───────────────────────────────────────────────────────────
-def render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list):
+def render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list, yoy=None):
     now_str = datetime.now(tz=timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
+    yoy_json = json.dumps(yoy or {"labels":[],"paid_2025":[],"paid_2026":[],"refunds_2025":[],"refunds_2026":[],"available_2025":False})
+
+    # YoY header totals + delta strings
+    def _delta(prev, curr):
+        if prev <= 0:
+            return ('<div class="chart-delta">—</div>' if curr == 0 else '')
+        pct = (curr - prev) / prev * 100
+        cls = "up" if curr >= prev else "down"
+        arrow = "▲" if curr >= prev else "▼"
+        return f'<div class="chart-delta {cls}">{arrow} {pct:+.1f}% YoY</div>'
+
+    paid_2025_total = (yoy.get("paid_2025_to_date", 0) if yoy else 0) if (yoy and yoy.get("available_2025")) else 0
+    refs_2025_total = (yoy.get("refunds_2025_to_date", 0) if yoy else 0) if (yoy and yoy.get("available_2025")) else 0
+    paid_2026_total = (yoy.get("paid_2026_to_date") if yoy else None) or hero.get("paid_total", 0)
+    refs_2026_total = (yoy.get("refunds_2026_to_date") if yoy else None) or hero.get("refund_total", 0)
+
+    paid_delta = _delta(paid_2025_total, paid_2026_total) if (yoy and yoy.get("available_2025")) else ""
+    refs_delta = _delta(refs_2025_total, refs_2026_total) if (yoy and yoy.get("available_2025")) else ""
 
     def cap_card(emoji, name, week_label, confirmed, unassigned_count, cap_tuple):
         level, status, subtitle = cap_tuple
@@ -297,12 +427,14 @@ def render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_l
   .hero-card:hover{{transform:translateY(-3px);box-shadow:0 12px 40px rgba(124,58,237,.15)}}
   .hero-card::before{{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:16px 16px 0 0}}
   .hero-card.valid::before{{background:linear-gradient(90deg,var(--green),#059669)}}
+  .hero-card.paid::before{{background:linear-gradient(90deg,var(--purple-light),var(--purple))}}
   .hero-card.refund::before{{background:linear-gradient(90deg,var(--red),#dc2626)}}
   .hero-card.unassigned::before{{background:linear-gradient(90deg,var(--orange),#ea580c)}}
   .hero-icon{{font-size:1.8rem;margin-bottom:8px}}
   .hero-label{{font-size:.85rem;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:.06em}}
   .hero-value{{font-size:2.8rem;font-weight:800;line-height:1.1;margin:6px 0}}
   .hero-card.valid .hero-value{{color:var(--green)}}
+  .hero-card.paid .hero-value{{color:var(--purple-light)}}
   .hero-card.refund .hero-value{{color:var(--red)}}
   .hero-card.unassigned .hero-value{{color:var(--orange)}}
   .hero-sub{{display:flex;gap:16px;margin-top:10px;font-size:.82rem;color:var(--text-dim)}}
@@ -373,6 +505,34 @@ def render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_l
   .promo-table td{{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text)}}
   .promo-table tr:hover td{{background:rgba(255,255,255,.03)}}
   .promo-empty{{text-align:center;padding:24px;color:var(--text-dim);font-size:.9rem;background:var(--card);border-radius:16px;border:1px solid rgba(255,255,255,.06);margin-bottom:8px}}
+  .chart-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px;margin-bottom:12px}}
+  .chart-card{{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:22px;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s}}
+  .chart-card:hover{{transform:translateY(-3px);box-shadow:0 12px 40px rgba(124,58,237,.12)}}
+  .chart-card::before{{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--purple),var(--gold));border-radius:16px 16px 0 0}}
+  .chart-header{{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px}}
+  .chart-title{{font-size:.95rem;font-weight:700;color:var(--text);letter-spacing:.02em}}
+  .chart-legend{{display:flex;gap:14px;font-size:.72rem;color:var(--text-dim)}}
+  .chart-legend .leg{{display:flex;align-items:center;gap:6px}}
+  .chart-legend .swatch{{width:16px;height:3px;border-radius:2px}}
+  .chart-legend .swatch.s2025{{background:var(--purple-light);opacity:.7}}
+  .chart-legend .swatch.s2026{{background:var(--gold)}}
+  .chart-svg{{width:100%;height:auto;display:block;overflow:visible}}
+  .chart-grid-line{{stroke:rgba(255,255,255,.06);stroke-width:1}}
+  .chart-axis-label{{fill:var(--text-dim);font-size:10px;font-family:-apple-system,sans-serif}}
+  .chart-line-2025{{fill:none;stroke:var(--purple-light);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.7;stroke-dasharray:4 3}}
+  .chart-line-2026{{fill:none;stroke:var(--gold);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 4px rgba(212,168,67,.4))}}
+  .chart-dot-2025{{fill:var(--purple-light);opacity:.7}}
+  .chart-dot-2026{{fill:var(--gold)}}
+  .chart-totals{{display:flex;justify-content:space-around;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.06)}}
+  .chart-total{{text-align:center}}
+  .chart-total-label{{font-size:.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em}}
+  .chart-total-val{{font-size:1.4rem;font-weight:800;margin-top:2px}}
+  .chart-total.t2025 .chart-total-val{{color:var(--purple-light)}}
+  .chart-total.t2026 .chart-total-val{{color:var(--gold)}}
+  .chart-delta{{font-size:.7rem;margin-top:2px;font-weight:600}}
+  .chart-delta.up{{color:var(--green)}}
+  .chart-delta.down{{color:var(--red)}}
+  .chart-empty{{text-align:center;padding:32px 16px;color:var(--text-dim);font-size:.85rem}}
   .section-count{{display:inline-block;background:var(--purple);color:#fff;font-size:.75rem;padding:2px 8px;border-radius:10px;margin-left:6px;font-weight:700}}
   .flag-ext{{display:inline-block;background:#f87171;color:#fff;font-size:.65rem;padding:1px 6px;border-radius:4px;margin-left:6px;font-weight:600;vertical-align:middle}}
   @media(max-width:600px){{
@@ -401,6 +561,15 @@ def render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_l
         <span>24h: <span class="num" data-target="{hero['valid_24h']}">0</span></span>
       </div>
     </div>
+    <div class="hero-card paid">
+      <div class="hero-icon">💳</div>
+      <div class="hero-label">Paid Tickets</div>
+      <div class="hero-value" data-target="{hero['paid_total']}">0</div>
+      <div class="hero-sub">
+        <span>Comped: <span class="num" data-target="{hero['comped_total']}">0</span></span>
+        <span>7d: <span class="num" data-target="{hero['paid_7d']}">0</span></span>
+      </div>
+    </div>
     <div class="hero-card refund">
       <div class="hero-icon">🔄</div>
       <div class="hero-label">Refunded Tickets</div>
@@ -417,13 +586,59 @@ def render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_l
     </div>
   </div>
 
-  <div class="section-label">Youth Program</div>
+  <div class="section-label">Year-over-Year Trend <span style="font-size:.75rem;font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-left:8px">From sales open (Aug) through today · 2025 vs 2026</span></div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">💳 Paid Tickets — Monthly</div>
+        <div class="chart-legend">
+          <div class="leg"><span class="swatch s2025"></span>2025</div>
+          <div class="leg"><span class="swatch s2026"></span>2026</div>
+        </div>
+      </div>
+      <svg class="chart-svg" id="chartPaid" viewBox="0 0 600 280" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="chart-totals">
+        <div class="chart-total t2025">
+          <div class="chart-total-label">2025 to date</div>
+          <div class="chart-total-val">{paid_2025_total}</div>
+        </div>
+        <div class="chart-total t2026">
+          <div class="chart-total-label">2026 to date</div>
+          <div class="chart-total-val">{paid_2026_total}</div>
+          {paid_delta}
+        </div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">🔄 Refunds — Monthly</div>
+        <div class="chart-legend">
+          <div class="leg"><span class="swatch s2025"></span>2025</div>
+          <div class="leg"><span class="swatch s2026"></span>2026</div>
+        </div>
+      </div>
+      <svg class="chart-svg" id="chartRefunds" viewBox="0 0 600 280" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="chart-totals">
+        <div class="chart-total t2025">
+          <div class="chart-total-label">2025 to date</div>
+          <div class="chart-total-val">{refs_2025_total}</div>
+        </div>
+        <div class="chart-total t2026">
+          <div class="chart-total-label">2026 to date</div>
+          <div class="chart-total-val">{refs_2026_total}</div>
+          {refs_delta}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">Kids &amp; Teens Program</div>
   <div class="cat-grid">
     {cat_card("🧒", "Kids (6-12)", kids)}
     {cat_card("🧑", "Teens (13-17)", teens)}
   </div>
 
-  <div class="section-label">⚠️ Youth Program — Capacity Risk <span style="font-size:.75rem;font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-left:8px">Cap. {CAPACITY} pax / category / week</span></div>
+  <div class="section-label">⚠️ Kids &amp; Teens Program — Capacity Risk <span style="font-size:.75rem;font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-left:8px">Cap. {CAPACITY} pax / category / week</span></div>
   <div class="cap-grid">
     {cap_card("🧒", "Kids",  "Week 1", kids["w1"],  kids["unassigned"],  cap["kids_w1"])}
     {cap_card("🧒", "Kids",  "Week 2", kids["w2"],  kids["unassigned"],  cap["kids_w2"])}
@@ -464,6 +679,78 @@ def render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_l
     }});
   }}
   animateCounters();
+
+  // Year-over-year line charts (data injected from Python)
+  const yoy = {yoy_json};
+
+  function renderLineChart(svgId, dataA, dataB, labels, available2025) {{
+    const svg = document.getElementById(svgId);
+    if (!svg) return;
+    const W = 600, H = 280;
+    const pad = {{ top: 18, right: 18, bottom: 32, left: 44 }};
+    const innerW = W - pad.left - pad.right;
+    const innerH = H - pad.top - pad.bottom;
+
+    if (!labels || labels.length === 0 || !dataB || dataB.length === 0) {{
+      svg.innerHTML = '<text class="chart-axis-label" x="50%" y="50%" text-anchor="middle">No data yet</text>';
+      return;
+    }}
+
+    const safeNums = arr => (arr || []).filter(v => v != null && !isNaN(v));
+    const allVals = [...safeNums(dataB), ...(available2025 ? safeNums(dataA) : [])];
+    const maxVal = Math.max(1, ...allVals);
+    const niceStep = (() => {{
+      const raw = maxVal / 4;
+      const mag = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+      const norm = raw / mag;
+      const nice = norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10;
+      return nice * mag;
+    }})();
+    const yMax = Math.max(niceStep, Math.ceil(maxVal / niceStep) * niceStep);
+    const xStep = innerW / Math.max(1, labels.length - 1);
+    const xAt = i => pad.left + i * xStep;
+    const yAt = v => pad.top + innerH - (v / yMax) * innerH;
+
+    let parts = [];
+    const ticks = Math.round(yMax / niceStep);
+    for (let i = 0; i <= ticks; i++) {{
+      const v = niceStep * i;
+      const y = yAt(v);
+      parts.push('<line class="chart-grid-line" x1="' + pad.left + '" x2="' + (W - pad.right) + '" y1="' + y + '" y2="' + y + '"/>');
+      parts.push('<text class="chart-axis-label" x="' + (pad.left - 8) + '" y="' + (y + 3.5) + '" text-anchor="end">' + v + '</text>');
+    }}
+    labels.forEach((m, i) => {{
+      parts.push('<text class="chart-axis-label" x="' + xAt(i) + '" y="' + (H - pad.bottom + 16) + '" text-anchor="middle">' + m + '</text>');
+    }});
+
+    function buildPath(data) {{
+      let cmd = '', last = false;
+      data.forEach((v, i) => {{
+        if (v == null || isNaN(v)) {{ last = false; return; }}
+        cmd += (last ? 'L' : 'M') + ' ' + xAt(i) + ' ' + yAt(v) + ' ';
+        last = true;
+      }});
+      return cmd.trim();
+    }}
+
+    function drawSeries(data, lineClass, dotClass, dotR) {{
+      if (!data || data.length === 0) return;
+      const path = buildPath(data);
+      if (path) parts.push('<path class="' + lineClass + '" d="' + path + '"/>');
+      data.forEach((v, i) => {{
+        if (v == null || isNaN(v)) return;
+        parts.push('<circle class="' + dotClass + '" cx="' + xAt(i) + '" cy="' + yAt(v) + '" r="' + dotR + '"/>');
+      }});
+    }}
+
+    if (available2025) drawSeries(dataA, 'chart-line-2025', 'chart-dot-2025', 3);
+    drawSeries(dataB, 'chart-line-2026', 'chart-dot-2026', 3.5);
+
+    svg.innerHTML = parts.join('');
+  }}
+
+  renderLineChart('chartPaid',    yoy.paid_2025,    yoy.paid_2026,    yoy.labels, yoy.available_2025);
+  renderLineChart('chartRefunds', yoy.refunds_2025, yoy.refunds_2026, yoy.labels, yoy.available_2025);
 </script>
 </body>
 </html>"""
@@ -524,15 +811,24 @@ if __name__ == "__main__":
     print("🔐 Authenticating...")
     token = get_token()
 
-    print("📥 Fetching registrations...")
-    regs = fetch_all(token)
+    print("📥 Fetching MVU 2026 registrations...")
+    regs = fetch_all(token, EVENT_ID)
     print(f"   Total records: {len(regs)}")
+
+    print(f"📥 Fetching MVU 2025 registrations (event {EVENT_ID_2025}) for YoY...")
+    try:
+        regs_2025 = fetch_all(token, EVENT_ID_2025)
+        print(f"   Total 2025 records: {len(regs_2025)}")
+    except Exception as e:
+        print(f"   ⚠️  Could not fetch 2025 data ({e}); YoY chart will show 2026 only.")
+        regs_2025 = None
 
     print("🧮 Computing metrics...")
     hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list = compute(regs)
+    yoy = compute_yoy(regs, regs_2025)
 
     print("✍️  Writing event-dashboards/mvu-2026/index.html...")
-    html = render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list)
+    html = render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list, yoy)
     import os
     os.makedirs("event-dashboards/mvu-2026", exist_ok=True)
     with open("event-dashboards/mvu-2026/index.html", "w", encoding="utf-8") as f:
@@ -551,6 +847,9 @@ if __name__ == "__main__":
         print(f"   {name}: {len(plist)} registrations -> {path}")
 
     print("✅ Done!")
-    print(f"   Valid tickets: {hero['valid_total']}")
+    print(f"   Valid tickets: {hero['valid_total']}  (paid:{hero['paid_total']} comped:{hero['comped_total']} refunded:{hero['refund_total']})")
     print(f"   Kids total: {kids['total']}  (W1:{kids['w1']} W2:{kids['w2']} Unass:{kids['unassigned']})")
     print(f"   Teens total: {teens['total']} (W1:{teens['w1']} W2:{teens['w2']} Unass:{teens['unassigned']})")
+    if yoy.get("available_2025"):
+        print(f"   YoY paid: 2025={yoy['paid_2025'][-1] if yoy['paid_2025'] else 0} → 2026={yoy['paid_2026'][-1] if yoy['paid_2026'] else 0}")
+        print(f"   YoY refunds: 2025={yoy['refunds_2025'][-1] if yoy['refunds_2025'] else 0} → 2026={yoy['refunds_2026'][-1] if yoy['refunds_2026'] else 0}")

@@ -533,8 +533,8 @@ def render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_l
       <div class="hero-label">Paid Tickets</div>
       <div class="hero-value" data-target="{hero['paid_total']}">0</div>
       <div class="hero-sub">
-        <span>Comped: <span class="num" data-target="{hero['comped_total']}">0</span></span>
         <span>7d: <span class="num" data-target="{hero['paid_7d']}">0</span></span>
+        <span>24h: <span class="num" data-target="{hero['paid_24h']}">0</span></span>
       </div>
     </div>
     <div class="hero-card refund">

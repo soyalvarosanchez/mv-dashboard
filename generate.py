@@ -79,56 +79,6 @@ def is_paid(r):
     except (TypeError, ValueError):
         return False
 
-# ── Refund-date helper ────────────────────────────────────────────────────────
-def get_refund_date(r):
-    """For refunded records, use Bizzabo's `modified` timestamp as the refund
-    date (the record is touched when the refund is processed). Falls back to
-    registrationDate if `modified` is missing for some reason."""
-    return parse_date(r.get("modified")) or parse_date(r.get("registrationDate"))
-
-# ── Probe: try Bizzabo endpoints that might expose refund history ────────────
-def _probe_refund_endpoints(token, event_id, refunded_record):
-    """Hit several plausible Bizzabo endpoints with one refunded record's IDs
-    so we can see in the workflow logs which (if any) returns refund timestamps.
-    Logs status codes and (truncated) bodies for inspection. Remove once the
-    real endpoint is identified."""
-    rid = refunded_record.get("id")
-    oid = refunded_record.get("orderId")
-    cid = refunded_record.get("contactId")
-    print(f"  [probe] using refunded record id={rid} orderId={oid} contactId={cid}")
-    base = "https://api.bizzabo.com"
-    candidates = [
-        f"{base}/v2/events/{event_id}/orders/{oid}",
-        f"{base}/v2/events/{event_id}/orders/{oid}/transactions",
-        f"{base}/v2/events/{event_id}/orders/{oid}/history",
-        f"{base}/v2/events/{event_id}/orders/{oid}/refunds",
-        f"{base}/v2/events/{event_id}/registrations/{rid}",
-        f"{base}/v2/events/{event_id}/registrations/{rid}/history",
-        f"{base}/v2/events/{event_id}/registrations/{rid}/transactions",
-        f"{base}/v2/events/{event_id}/registrations/{rid}/payments",
-        f"{base}/v2/events/{event_id}/registrations/{rid}/refunds",
-        f"{base}/v2/orders/{oid}",
-        f"{base}/v2/orders/{oid}/transactions",
-        f"{base}/v2/transactions?orderId={oid}",
-        f"{base}/v2/transactions?registrationId={rid}",
-        f"{base}/v2/refunds?eventId={event_id}",
-    ]
-    for url in candidates:
-        try:
-            resp = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=15)
-            label = f"  [probe] {resp.status_code} {url}"
-            if resp.status_code == 200:
-                body = resp.text
-                lower = body.lower()
-                hit = any(k in lower for k in ("refund", "cancel"))
-                marker = " ★ contains refund/cancel" if hit else ""
-                print(f"{label}{marker}")
-                print(f"  [probe]   body[:1500]: {body[:1500]}")
-            else:
-                print(label)
-        except Exception as e:
-            print(f"  [probe] ERR {url}: {e}")
-
 # ── Monthly buckets for YoY charts ────────────────────────────────────────────
 _MONTH_NAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -285,21 +235,15 @@ def compute(regs):
 # ── Year-over-year time series ───────────────────────────────────────────────
 def compute_yoy(regs_2026, regs_2025=None):
     """
-    Build cumulative monthly series for paid tickets and refunds, comparing
+    Build the per-month paid-tickets series for the YoY chart, comparing
     2025 (event 619441) and 2026 (event 754649). Each line covers Aug of the
-    prior year through today's month/day in the event year.
-    Returns a dict ready to be JSON-serialised into the HTML.
+    prior year through Jul of the event year; the 2026 line clamps at today
+    so future months render as a gap rather than zero.
     """
     today = datetime.now(tz=timezone.utc)
 
-    paid_2026     = [r for r in regs_2026 if r.get("validity","").lower() == "valid" and is_paid(r)]
-    refunded_2026 = [r for r in regs_2026 if (r.get("paymentStatus") or "").lower() == "refunded"]
-
-    if regs_2025:
-        paid_2025     = [r for r in regs_2025 if r.get("validity","").lower() == "valid" and is_paid(r)]
-        refunded_2025 = [r for r in regs_2025 if (r.get("paymentStatus") or "").lower() == "refunded"]
-    else:
-        paid_2025, refunded_2025 = [], []
+    paid_2026 = [r for r in regs_2026 if r.get("validity","").lower() == "valid" and is_paid(r)]
+    paid_2025 = [r for r in regs_2025 if r.get("validity","").lower() == "valid" and is_paid(r)] if regs_2025 else []
 
     buckets_2026 = monthly_buckets_full(2026)
     buckets_2025 = monthly_buckets_full(2025)
@@ -314,23 +258,18 @@ def compute_yoy(regs_2026, regs_2025=None):
 
     return {
         "labels":        [b[0] for b in buckets_2026],
-        "paid_2025":     per_month_count(paid_2025,     buckets_2025, reg_date),
-        "paid_2026":     per_month_count(paid_2026,     buckets_2026, reg_date,        clamp_end=today),
-        "refunds_2025":  per_month_count(refunded_2025, buckets_2025, get_refund_date),
-        "refunds_2026":  per_month_count(refunded_2026, buckets_2026, get_refund_date, clamp_end=today),
-        "paid_2025_to_date":    to_date_count(paid_2025,     2025, reg_date),
-        "paid_2026_to_date":    to_date_count(paid_2026,     2026, reg_date),
-        "refunds_2025_to_date": to_date_count(refunded_2025, 2025, get_refund_date),
-        "refunds_2026_to_date": to_date_count(refunded_2026, 2026, get_refund_date),
-        "available_2025": bool(regs_2025),
+        "paid_2025":         per_month_count(paid_2025, buckets_2025, reg_date),
+        "paid_2026":         per_month_count(paid_2026, buckets_2026, reg_date, clamp_end=today),
+        "paid_2025_to_date": to_date_count(paid_2025, 2025, reg_date),
+        "paid_2026_to_date": to_date_count(paid_2026, 2026, reg_date),
+        "available_2025":    bool(regs_2025),
     }
 
 # ── HTML generation ───────────────────────────────────────────────────────────
 def render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list, yoy=None):
     now_str = datetime.now(tz=timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
-    yoy_json = json.dumps(yoy or {"labels":[],"paid_2025":[],"paid_2026":[],"refunds_2025":[],"refunds_2026":[],"available_2025":False})
+    yoy_json = json.dumps(yoy or {"labels":[],"paid_2025":[],"paid_2026":[],"available_2025":False})
 
-    # YoY header totals + delta strings
     def _delta(prev, curr):
         if prev <= 0:
             return ('<div class="chart-delta">—</div>' if curr == 0 else '')
@@ -340,12 +279,8 @@ def render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_l
         return f'<div class="chart-delta {cls}">{arrow} {pct:+.1f}% YoY</div>'
 
     paid_2025_total = (yoy.get("paid_2025_to_date", 0) if yoy else 0) if (yoy and yoy.get("available_2025")) else 0
-    refs_2025_total = (yoy.get("refunds_2025_to_date", 0) if yoy else 0) if (yoy and yoy.get("available_2025")) else 0
     paid_2026_total = (yoy.get("paid_2026_to_date") if yoy else None) or hero.get("paid_total", 0)
-    refs_2026_total = (yoy.get("refunds_2026_to_date") if yoy else None) or hero.get("refund_total", 0)
-
     paid_delta = _delta(paid_2025_total, paid_2026_total) if (yoy and yoy.get("available_2025")) else ""
-    refs_delta = _delta(refs_2025_total, refs_2026_total) if (yoy and yoy.get("available_2025")) else ""
 
     def cap_card(emoji, name, week_label, confirmed, unassigned_count, cap_tuple):
         level, status, subtitle = cap_tuple
@@ -641,27 +576,6 @@ def render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_l
         </div>
       </div>
     </div>
-    <div class="chart-card">
-      <div class="chart-header">
-        <div class="chart-title">🔄 Refunds — Monthly</div>
-        <div class="chart-legend">
-          <div class="leg"><span class="swatch s2025"></span>2025</div>
-          <div class="leg"><span class="swatch s2026"></span>2026</div>
-        </div>
-      </div>
-      <svg class="chart-svg" id="chartRefunds" viewBox="0 0 600 280" preserveAspectRatio="xMidYMid meet"></svg>
-      <div class="chart-totals">
-        <div class="chart-total t2025">
-          <div class="chart-total-label">2025 to date</div>
-          <div class="chart-total-val">{refs_2025_total}</div>
-        </div>
-        <div class="chart-total t2026">
-          <div class="chart-total-label">2026 to date</div>
-          <div class="chart-total-val">{refs_2026_total}</div>
-          {refs_delta}
-        </div>
-      </div>
-    </div>
   </div>
 
   <div class="section-label">Kids &amp; Teens Program</div>
@@ -783,7 +697,6 @@ def render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_l
   }}
 
   renderLineChart('chartPaid',    yoy.paid_2025,    yoy.paid_2026,    yoy.labels, yoy.available_2025);
-  renderLineChart('chartRefunds', yoy.refunds_2025, yoy.refunds_2026, yoy.labels, yoy.available_2025);
 </script>
 </body>
 </html>"""
@@ -848,13 +761,6 @@ if __name__ == "__main__":
     regs = fetch_all(token, EVENT_ID)
     print(f"   Total records: {len(regs)}")
 
-    print("🔍 Probing endpoints for refund history…")
-    _refunded_sample = next((r for r in regs if (r.get("paymentStatus") or "").lower() == "refunded"), None)
-    if _refunded_sample:
-        _probe_refund_endpoints(token, EVENT_ID, _refunded_sample)
-    else:
-        print("   no refunded records in 2026 to probe with")
-
     print(f"📥 Fetching MVU 2025 registrations (event {EVENT_ID_2025}) for YoY...")
     try:
         regs_2025 = fetch_all(token, EVENT_ID_2025)
@@ -891,5 +797,4 @@ if __name__ == "__main__":
     print(f"   Kids total: {kids['total']}  (W1:{kids['w1']} W2:{kids['w2']} Unass:{kids['unassigned']})")
     print(f"   Teens total: {teens['total']} (W1:{teens['w1']} W2:{teens['w2']} Unass:{teens['unassigned']})")
     if yoy.get("available_2025"):
-        print(f"   YoY paid:    2025 to date={yoy.get('paid_2025_to_date', 0)} → 2026 to date={yoy.get('paid_2026_to_date', 0)}")
-        print(f"   YoY refunds: 2025 to date={yoy.get('refunds_2025_to_date', 0)} → 2026 to date={yoy.get('refunds_2026_to_date', 0)}")
+        print(f"   YoY paid: 2025 to date={yoy.get('paid_2025_to_date', 0)} → 2026 to date={yoy.get('paid_2026_to_date', 0)}")

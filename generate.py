@@ -71,21 +71,56 @@ def parse_date(s):
         return None
 
 # ── Paid vs Comped helper ─────────────────────────────────────────────────────
+def _find_field(r, label, aliases=()):
+    """
+    Look up a custom field across Bizzabo's various record shapes:
+    - top-level keys
+    - properties as dict (key → value)
+    - properties as list of {label/name/systemFieldId, value} entries
+    - common nested containers (ticket, payment, customFields)
+    """
+    norm = lambda s: (s or "").lower().replace("_", " ").replace("-", " ").strip()
+    target = norm(label)
+    aliases_norm = {norm(a) for a in (label, *aliases)}
+
+    def search(obj):
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if isinstance(k, str) and norm(k) in aliases_norm:
+                    return v
+        elif isinstance(obj, list):
+            for prop in obj:
+                if not isinstance(prop, dict):
+                    continue
+                for key_field in ("label", "name", "displayName", "systemFieldId"):
+                    key_val = prop.get(key_field)
+                    if isinstance(key_val, str) and norm(key_val) == target:
+                        return prop.get("value")
+        return None
+
+    val = search(r)
+    if val is not None:
+        return val
+    for nested_key in ("properties", "ticket", "payment", "paymentDetails", "customFields"):
+        nested = r.get(nested_key)
+        if nested:
+            val = search(nested)
+            if val is not None:
+                return val
+    return None
+
 def is_paid(r):
-    """A valid ticket is 'paid' if its price > 0; otherwise it's comped (free/complimentary)."""
-    for field in ("paidAmount", "totalPrice", "totalAmount", "amount", "price"):
-        v = r.get(field)
-        if v is None:
-            continue
-        try:
-            return float(v) > 0
-        except (TypeError, ValueError):
-            continue
-    # No price field available — fall back to promoCode heuristic (comp codes ⇒ comped)
-    promo = (r.get("promoCode") or "").lower()
-    if promo in ("mycrewpass", "volunteer2weeks", "hexagon"):
-        return False
-    return True  # Default: assume paid if no signals say otherwise
+    """A valid ticket is 'paid' if its 'Ticket Paid' value is a non-zero amount."""
+    val = _find_field(r, "Ticket Paid", aliases=("ticketPaid", "ticket_paid", "TICKET_PAID"))
+    if val is None:
+        return False  # No signal → conservative default: count as comped
+    try:
+        amt = float(str(val).replace("$", "").replace(",", "").strip())
+        return amt > 0
+    except (TypeError, ValueError):
+        pass
+    s = str(val).strip().lower()
+    return s in ("yes", "true", "y", "paid", "1")
 
 # ── Refund-date helper ────────────────────────────────────────────────────────
 def get_refund_date(r):

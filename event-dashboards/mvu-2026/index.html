@@ -33,12 +33,14 @@
   .hero-card:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(124,58,237,.15)}
   .hero-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:16px 16px 0 0}
   .hero-card.valid::before{background:linear-gradient(90deg,var(--green),#059669)}
+  .hero-card.paid::before{background:linear-gradient(90deg,var(--purple-light),var(--purple))}
   .hero-card.refund::before{background:linear-gradient(90deg,var(--red),#dc2626)}
   .hero-card.unassigned::before{background:linear-gradient(90deg,var(--orange),#ea580c)}
   .hero-icon{font-size:1.8rem;margin-bottom:8px}
   .hero-label{font-size:.85rem;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:.06em}
   .hero-value{font-size:2.8rem;font-weight:800;line-height:1.1;margin:6px 0}
   .hero-card.valid .hero-value{color:var(--green)}
+  .hero-card.paid .hero-value{color:var(--purple-light)}
   .hero-card.refund .hero-value{color:var(--red)}
   .hero-card.unassigned .hero-value{color:var(--orange)}
   .hero-sub{display:flex;gap:16px;margin-top:10px;font-size:.82rem;color:var(--text-dim)}
@@ -109,6 +111,34 @@
   .promo-table td{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text)}
   .promo-table tr:hover td{background:rgba(255,255,255,.03)}
   .promo-empty{text-align:center;padding:24px;color:var(--text-dim);font-size:.9rem;background:var(--card);border-radius:16px;border:1px solid rgba(255,255,255,.06);margin-bottom:8px}
+  .chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px;margin-bottom:12px}
+  .chart-card{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:22px;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s}
+  .chart-card:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(124,58,237,.12)}
+  .chart-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--purple),var(--gold));border-radius:16px 16px 0 0}
+  .chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+  .chart-title{font-size:.95rem;font-weight:700;color:var(--text);letter-spacing:.02em}
+  .chart-legend{display:flex;gap:14px;font-size:.72rem;color:var(--text-dim)}
+  .chart-legend .leg{display:flex;align-items:center;gap:6px}
+  .chart-legend .swatch{width:16px;height:3px;border-radius:2px}
+  .chart-legend .swatch.s2025{background:var(--purple-light);opacity:.7}
+  .chart-legend .swatch.s2026{background:var(--gold)}
+  .chart-svg{width:100%;height:auto;display:block;overflow:visible}
+  .chart-grid-line{stroke:rgba(255,255,255,.06);stroke-width:1}
+  .chart-axis-label{fill:var(--text-dim);font-size:10px;font-family:-apple-system,sans-serif}
+  .chart-line-2025{fill:none;stroke:var(--purple-light);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.7;stroke-dasharray:4 3}
+  .chart-line-2026{fill:none;stroke:var(--gold);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 4px rgba(212,168,67,.4))}
+  .chart-dot-2025{fill:var(--purple-light);opacity:.7}
+  .chart-dot-2026{fill:var(--gold)}
+  .chart-totals{display:flex;justify-content:space-around;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.06)}
+  .chart-total{text-align:center}
+  .chart-total-label{font-size:.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em}
+  .chart-total-val{font-size:1.4rem;font-weight:800;margin-top:2px}
+  .chart-total.t2025 .chart-total-val{color:var(--purple-light)}
+  .chart-total.t2026 .chart-total-val{color:var(--gold)}
+  .chart-delta{font-size:.7rem;margin-top:2px;font-weight:600}
+  .chart-delta.up{color:var(--green)}
+  .chart-delta.down{color:var(--red)}
+  .chart-empty{text-align:center;padding:32px 16px;color:var(--text-dim);font-size:.85rem}
   .section-count{display:inline-block;background:var(--purple);color:#fff;font-size:.75rem;padding:2px 8px;border-radius:10px;margin-left:6px;font-weight:700}
   .flag-ext{display:inline-block;background:#f87171;color:#fff;font-size:.65rem;padding:1px 6px;border-radius:4px;margin-left:6px;font-weight:600;vertical-align:middle}
   @media(max-width:600px){
@@ -123,7 +153,7 @@
   <header>
     <h1>Mindvalley U 2026</h1>
     <p>Registration Dashboard — Tallinn, Estonia</p>
-    <div class="timestamp">Data snapshot: May 05, 2026 at 07:22 UTC</div>
+    <div class="timestamp">Data snapshot: May 05, 2026 at 07:41 UTC</div>
   </header>
 
   <div class="section-label">Ticket Overview</div>
@@ -135,6 +165,15 @@
       <div class="hero-sub">
         <span>7d: <span class="num" data-target="81">0</span></span>
         <span>24h: <span class="num" data-target="6">0</span></span>
+      </div>
+    </div>
+    <div class="hero-card paid">
+      <div class="hero-icon">💳</div>
+      <div class="hero-label">Paid Tickets</div>
+      <div class="hero-value" data-target="0">0</div>
+      <div class="hero-sub">
+        <span>Comped: <span class="num" data-target="1088">0</span></span>
+        <span>7d: <span class="num" data-target="0">0</span></span>
       </div>
     </div>
     <div class="hero-card refund">
@@ -153,7 +192,53 @@
     </div>
   </div>
 
-  <div class="section-label">Youth Program</div>
+  <div class="section-label">Year-over-Year Trend <span style="font-size:.75rem;font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-left:8px">From sales open (Aug) through today · 2025 vs 2026</span></div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">💳 Paid Tickets — Monthly</div>
+        <div class="chart-legend">
+          <div class="leg"><span class="swatch s2025"></span>2025</div>
+          <div class="leg"><span class="swatch s2026"></span>2026</div>
+        </div>
+      </div>
+      <svg class="chart-svg" id="chartPaid" viewBox="0 0 600 280" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="chart-totals">
+        <div class="chart-total t2025">
+          <div class="chart-total-label">2025 to date</div>
+          <div class="chart-total-val">0</div>
+        </div>
+        <div class="chart-total t2026">
+          <div class="chart-total-label">2026 to date</div>
+          <div class="chart-total-val">0</div>
+          <div class="chart-delta">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">🔄 Refunds — Monthly</div>
+        <div class="chart-legend">
+          <div class="leg"><span class="swatch s2025"></span>2025</div>
+          <div class="leg"><span class="swatch s2026"></span>2026</div>
+        </div>
+      </div>
+      <svg class="chart-svg" id="chartRefunds" viewBox="0 0 600 280" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="chart-totals">
+        <div class="chart-total t2025">
+          <div class="chart-total-label">2025 to date</div>
+          <div class="chart-total-val">206</div>
+        </div>
+        <div class="chart-total t2026">
+          <div class="chart-total-label">2026 to date</div>
+          <div class="chart-total-val">207</div>
+          <div class="chart-delta up">▲ +0.5% YoY</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">Kids &amp; Teens Program</div>
   <div class="cat-grid">
     
     <div class="cat-card">
@@ -179,7 +264,7 @@
     </div>
   </div>
 
-  <div class="section-label">⚠️ Youth Program — Capacity Risk <span style="font-size:.75rem;font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-left:8px">Cap. 70 pax / category / week</span></div>
+  <div class="section-label">⚠️ Kids &amp; Teens Program — Capacity Risk <span style="font-size:.75rem;font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-left:8px">Cap. 70 pax / category / week</span></div>
   <div class="cap-grid">
     
     <div class="cap-card risk-red">
@@ -350,6 +435,78 @@
     });
   }
   animateCounters();
+
+  // Year-over-year line charts (data injected from Python)
+  const yoy = {"labels": ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"], "paid_2025": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "paid_2026": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, null, null], "refunds_2025": [79, 4, 2, 4, 2, 15, 5, 50, 39, 11, 46, 3], "refunds_2026": [169, 2, 1, 0, 1, 0, 3, 6, 21, 4, null, null], "paid_2025_to_date": 0, "paid_2026_to_date": 0, "refunds_2025_to_date": 206, "refunds_2026_to_date": 207, "available_2025": true};
+
+  function renderLineChart(svgId, dataA, dataB, labels, available2025) {
+    const svg = document.getElementById(svgId);
+    if (!svg) return;
+    const W = 600, H = 280;
+    const pad = { top: 18, right: 18, bottom: 32, left: 44 };
+    const innerW = W - pad.left - pad.right;
+    const innerH = H - pad.top - pad.bottom;
+
+    if (!labels || labels.length === 0 || !dataB || dataB.length === 0) {
+      svg.innerHTML = '<text class="chart-axis-label" x="50%" y="50%" text-anchor="middle">No data yet</text>';
+      return;
+    }
+
+    const safeNums = arr => (arr || []).filter(v => v != null && !isNaN(v));
+    const allVals = [...safeNums(dataB), ...(available2025 ? safeNums(dataA) : [])];
+    const maxVal = Math.max(1, ...allVals);
+    const niceStep = (() => {
+      const raw = maxVal / 4;
+      const mag = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+      const norm = raw / mag;
+      const nice = norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10;
+      return nice * mag;
+    })();
+    const yMax = Math.max(niceStep, Math.ceil(maxVal / niceStep) * niceStep);
+    const xStep = innerW / Math.max(1, labels.length - 1);
+    const xAt = i => pad.left + i * xStep;
+    const yAt = v => pad.top + innerH - (v / yMax) * innerH;
+
+    let parts = [];
+    const ticks = Math.round(yMax / niceStep);
+    for (let i = 0; i <= ticks; i++) {
+      const v = niceStep * i;
+      const y = yAt(v);
+      parts.push('<line class="chart-grid-line" x1="' + pad.left + '" x2="' + (W - pad.right) + '" y1="' + y + '" y2="' + y + '"/>');
+      parts.push('<text class="chart-axis-label" x="' + (pad.left - 8) + '" y="' + (y + 3.5) + '" text-anchor="end">' + v + '</text>');
+    }
+    labels.forEach((m, i) => {
+      parts.push('<text class="chart-axis-label" x="' + xAt(i) + '" y="' + (H - pad.bottom + 16) + '" text-anchor="middle">' + m + '</text>');
+    });
+
+    function buildPath(data) {
+      let cmd = '', last = false;
+      data.forEach((v, i) => {
+        if (v == null || isNaN(v)) { last = false; return; }
+        cmd += (last ? 'L' : 'M') + ' ' + xAt(i) + ' ' + yAt(v) + ' ';
+        last = true;
+      });
+      return cmd.trim();
+    }
+
+    function drawSeries(data, lineClass, dotClass, dotR) {
+      if (!data || data.length === 0) return;
+      const path = buildPath(data);
+      if (path) parts.push('<path class="' + lineClass + '" d="' + path + '"/>');
+      data.forEach((v, i) => {
+        if (v == null || isNaN(v)) return;
+        parts.push('<circle class="' + dotClass + '" cx="' + xAt(i) + '" cy="' + yAt(v) + '" r="' + dotR + '"/>');
+      });
+    }
+
+    if (available2025) drawSeries(dataA, 'chart-line-2025', 'chart-dot-2025', 3);
+    drawSeries(dataB, 'chart-line-2026', 'chart-dot-2026', 3.5);
+
+    svg.innerHTML = parts.join('');
+  }
+
+  renderLineChart('chartPaid',    yoy.paid_2025,    yoy.paid_2026,    yoy.labels, yoy.available_2025);
+  renderLineChart('chartRefunds', yoy.refunds_2025, yoy.refunds_2026, yoy.labels, yoy.available_2025);
 </script>
 </body>
 </html>

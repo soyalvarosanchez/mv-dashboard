@@ -203,25 +203,31 @@ def get_week(reg):
 
 # ── Diagnostic: log the structure of the first record so we can find custom fields
 def _debug_first_record(regs, label="record"):
+    import json as _json
     if not regs:
         print(f"  [debug] no {label}s to inspect")
         return
-    r = regs[0]
+    # Pick the first VALID record (not refunded) so we see fully-populated structure
+    r = next((x for x in regs if (x.get("validity","").lower() == "valid")), regs[0])
     print(f"  [debug] sample {label} top-level keys: {sorted(r.keys())}")
     props = r.get("properties")
     if isinstance(props, dict):
-        print(f"  [debug]   properties is a dict with keys: {sorted(props.keys())}")
+        print(f"  [debug]   properties is a dict with {len(props)} keys: {sorted(props.keys())}")
     elif isinstance(props, list):
-        labels = [(p.get('label'), p.get('systemFieldId'), type(p.get('value')).__name__) for p in props if isinstance(p, dict)]
         print(f"  [debug]   properties is a list ({len(props)} items)")
-        for lab, sid, tval in labels[:40]:
-            print(f"  [debug]     · label={lab!r} systemFieldId={sid!r} value_type={tval}")
-    # Search anywhere in the record for keys matching 'ticket' or 'paid'
-    import json as _json
-    blob = _json.dumps(r, default=str).lower()
-    for needle in ("ticket paid", "ticketpaid", "ticket_paid", "paid_amount", "paidamount"):
+        for i, p in enumerate(props[:60]):
+            if not isinstance(p, dict): continue
+            print(f"  [debug]     · label={p.get('label')!r} systemFieldId={p.get('systemFieldId')!r} value={str(p.get('value'))[:60]!r}")
+    # Dump the full record JSON (truncated to 4000 chars) so we can see ALL fields
+    full = _json.dumps(r, default=str, ensure_ascii=False)
+    print(f"  [debug] full record JSON ({len(full)} chars):")
+    print(full[:4000])
+    # Search for paid/refund related substrings
+    blob = full.lower()
+    for needle in ("ticket paid", "ticketpaid", "ticket_paid", "paid_amount",
+                   "paidamount", "refund", "cancel", "modif"):
         if needle in blob:
-            print(f"  [debug]   FOUND substring {needle!r} in record JSON")
+            print(f"  [debug]   substring {needle!r} present in record")
 
 # ── Main compute ─────────────────────────────────────────────────────────────
 def compute(regs):
@@ -770,12 +776,13 @@ def render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_l
     const yAt = v => pad.top + innerH - (v / yMax) * innerH;
 
     let parts = [];
-    const ticks = Math.round(yMax / niceStep);
+    const ticks = Math.max(1, Math.round(yMax / niceStep));
+    const fmt = v => Number(v.toFixed(2)).toString();
     for (let i = 0; i <= ticks; i++) {{
       const v = niceStep * i;
       const y = yAt(v);
       parts.push('<line class="chart-grid-line" x1="' + pad.left + '" x2="' + (W - pad.right) + '" y1="' + y + '" y2="' + y + '"/>');
-      parts.push('<text class="chart-axis-label" x="' + (pad.left - 8) + '" y="' + (y + 3.5) + '" text-anchor="end">' + v + '</text>');
+      parts.push('<text class="chart-axis-label" x="' + (pad.left - 8) + '" y="' + (y + 3.5) + '" text-anchor="end">' + fmt(v) + '</text>');
     }}
     labels.forEach((m, i) => {{
       parts.push('<text class="chart-axis-label" x="' + xAt(i) + '" y="' + (H - pad.bottom + 16) + '" text-anchor="middle">' + m + '</text>');

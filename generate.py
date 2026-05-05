@@ -71,66 +71,20 @@ def parse_date(s):
         return None
 
 # ── Paid vs Comped helper ─────────────────────────────────────────────────────
-def _find_field(r, label, aliases=()):
-    """
-    Look up a custom field across Bizzabo's various record shapes:
-    - top-level keys
-    - properties as dict (key → value)
-    - properties as list of {label/name/systemFieldId, value} entries
-    - common nested containers (ticket, payment, customFields)
-    """
-    norm = lambda s: (s or "").lower().replace("_", " ").replace("-", " ").strip()
-    target = norm(label)
-    aliases_norm = {norm(a) for a in (label, *aliases)}
-
-    def search(obj):
-        if isinstance(obj, dict):
-            for k, v in obj.items():
-                if isinstance(k, str) and norm(k) in aliases_norm:
-                    return v
-        elif isinstance(obj, list):
-            for prop in obj:
-                if not isinstance(prop, dict):
-                    continue
-                for key_field in ("label", "name", "displayName", "systemFieldId"):
-                    key_val = prop.get(key_field)
-                    if isinstance(key_val, str) and norm(key_val) == target:
-                        return prop.get("value")
-        return None
-
-    val = search(r)
-    if val is not None:
-        return val
-    for nested_key in ("properties", "ticket", "payment", "paymentDetails", "customFields"):
-        nested = r.get(nested_key)
-        if nested:
-            val = search(nested)
-            if val is not None:
-                return val
-    return None
-
 def is_paid(r):
-    """A valid ticket is 'paid' if its 'Ticket Paid' value is a non-zero amount."""
-    val = _find_field(r, "Ticket Paid", aliases=("ticketPaid", "ticket_paid", "TICKET_PAID"))
-    if val is None:
-        return False  # No signal → conservative default: count as comped
+    """A valid ticket is 'paid' if Bizzabo's top-level `price` field is > 0
+    (it's stored in cents, e.g. 119900 = $1199.00). 0 / missing = comped."""
     try:
-        amt = float(str(val).replace("$", "").replace(",", "").strip())
-        return amt > 0
+        return float(r.get("price") or 0) > 0
     except (TypeError, ValueError):
-        pass
-    s = str(val).strip().lower()
-    return s in ("yes", "true", "y", "paid", "1")
+        return False
 
 # ── Refund-date helper ────────────────────────────────────────────────────────
 def get_refund_date(r):
-    """Try refund-related date fields, fall back to registrationDate."""
-    for field in ("refundDate", "refundedAt", "refundedDate", "cancelledAt",
-                  "lastModifiedDate", "modifiedDate"):
-        d = parse_date(r.get(field))
-        if d:
-            return d
-    return parse_date(r.get("registrationDate"))
+    """For refunded records, use Bizzabo's `modified` timestamp as the refund
+    date (the record is touched when the refund is processed). Falls back to
+    registrationDate if `modified` is missing for some reason."""
+    return parse_date(r.get("modified")) or parse_date(r.get("registrationDate"))
 
 # ── Monthly buckets for YoY charts ────────────────────────────────────────────
 _MONTH_NAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -201,40 +155,11 @@ def get_week(reg):
                     return val
     return None
 
-# ── Diagnostic: log the structure of the first record so we can find custom fields
-def _debug_first_record(regs, label="record"):
-    import json as _json
-    if not regs:
-        print(f"  [debug] no {label}s to inspect")
-        return
-    # Pick the first VALID record (not refunded) so we see fully-populated structure
-    r = next((x for x in regs if (x.get("validity","").lower() == "valid")), regs[0])
-    print(f"  [debug] sample {label} top-level keys: {sorted(r.keys())}")
-    props = r.get("properties")
-    if isinstance(props, dict):
-        print(f"  [debug]   properties is a dict with {len(props)} keys: {sorted(props.keys())}")
-    elif isinstance(props, list):
-        print(f"  [debug]   properties is a list ({len(props)} items)")
-        for i, p in enumerate(props[:60]):
-            if not isinstance(p, dict): continue
-            print(f"  [debug]     · label={p.get('label')!r} systemFieldId={p.get('systemFieldId')!r} value={str(p.get('value'))[:60]!r}")
-    # Dump the full record JSON (truncated to 4000 chars) so we can see ALL fields
-    full = _json.dumps(r, default=str, ensure_ascii=False)
-    print(f"  [debug] full record JSON ({len(full)} chars):")
-    print(full[:4000])
-    # Search for paid/refund related substrings
-    blob = full.lower()
-    for needle in ("ticket paid", "ticketpaid", "ticket_paid", "paid_amount",
-                   "paidamount", "refund", "cancel", "modif"):
-        if needle in blob:
-            print(f"  [debug]   substring {needle!r} present in record")
-
 # ── Main compute ─────────────────────────────────────────────────────────────
 def compute(regs):
     now   = datetime.now(tz=timezone.utc)
     d7    = now - timedelta(days=7)
     d24   = now - timedelta(hours=24)
-    _debug_first_record(regs, label="2026 registration")
 
     valid     = [r for r in regs if r.get("validity","").lower() == "valid"]
     refunded  = [r for r in regs if (r.get("paymentStatus") or "").lower() == "refunded"]
@@ -916,5 +841,5 @@ if __name__ == "__main__":
     print(f"   Kids total: {kids['total']}  (W1:{kids['w1']} W2:{kids['w2']} Unass:{kids['unassigned']})")
     print(f"   Teens total: {teens['total']} (W1:{teens['w1']} W2:{teens['w2']} Unass:{teens['unassigned']})")
     if yoy.get("available_2025"):
-        print(f"   YoY paid: 2025={yoy['paid_2025'][-1] if yoy['paid_2025'] else 0} → 2026={yoy['paid_2026'][-1] if yoy['paid_2026'] else 0}")
-        print(f"   YoY refunds: 2025={yoy['refunds_2025'][-1] if yoy['refunds_2025'] else 0} → 2026={yoy['refunds_2026'][-1] if yoy['refunds_2026'] else 0}")
+        print(f"   YoY paid:    2025 to date={yoy.get('paid_2025_to_date', 0)} → 2026 to date={yoy.get('paid_2026_to_date', 0)}")
+        print(f"   YoY refunds: 2025 to date={yoy.get('refunds_2025_to_date', 0)} → 2026 to date={yoy.get('refunds_2026_to_date', 0)}")

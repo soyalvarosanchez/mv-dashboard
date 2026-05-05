@@ -201,11 +201,34 @@ def get_week(reg):
                     return val
     return None
 
+# ── Diagnostic: log the structure of the first record so we can find custom fields
+def _debug_first_record(regs, label="record"):
+    if not regs:
+        print(f"  [debug] no {label}s to inspect")
+        return
+    r = regs[0]
+    print(f"  [debug] sample {label} top-level keys: {sorted(r.keys())}")
+    props = r.get("properties")
+    if isinstance(props, dict):
+        print(f"  [debug]   properties is a dict with keys: {sorted(props.keys())}")
+    elif isinstance(props, list):
+        labels = [(p.get('label'), p.get('systemFieldId'), type(p.get('value')).__name__) for p in props if isinstance(p, dict)]
+        print(f"  [debug]   properties is a list ({len(props)} items)")
+        for lab, sid, tval in labels[:40]:
+            print(f"  [debug]     · label={lab!r} systemFieldId={sid!r} value_type={tval}")
+    # Search anywhere in the record for keys matching 'ticket' or 'paid'
+    import json as _json
+    blob = _json.dumps(r, default=str).lower()
+    for needle in ("ticket paid", "ticketpaid", "ticket_paid", "paid_amount", "paidamount"):
+        if needle in blob:
+            print(f"  [debug]   FOUND substring {needle!r} in record JSON")
+
 # ── Main compute ─────────────────────────────────────────────────────────────
 def compute(regs):
     now   = datetime.now(tz=timezone.utc)
     d7    = now - timedelta(days=7)
     d24   = now - timedelta(hours=24)
+    _debug_first_record(regs, label="2026 registration")
 
     valid     = [r for r in regs if r.get("validity","").lower() == "valid"]
     refunded  = [r for r in regs if (r.get("paymentStatus") or "").lower() == "refunded"]

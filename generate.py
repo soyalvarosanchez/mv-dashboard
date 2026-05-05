@@ -86,6 +86,49 @@ def get_refund_date(r):
     registrationDate if `modified` is missing for some reason."""
     return parse_date(r.get("modified")) or parse_date(r.get("registrationDate"))
 
+# ── Probe: try Bizzabo endpoints that might expose refund history ────────────
+def _probe_refund_endpoints(token, event_id, refunded_record):
+    """Hit several plausible Bizzabo endpoints with one refunded record's IDs
+    so we can see in the workflow logs which (if any) returns refund timestamps.
+    Logs status codes and (truncated) bodies for inspection. Remove once the
+    real endpoint is identified."""
+    rid = refunded_record.get("id")
+    oid = refunded_record.get("orderId")
+    cid = refunded_record.get("contactId")
+    print(f"  [probe] using refunded record id={rid} orderId={oid} contactId={cid}")
+    base = "https://api.bizzabo.com"
+    candidates = [
+        f"{base}/v2/events/{event_id}/orders/{oid}",
+        f"{base}/v2/events/{event_id}/orders/{oid}/transactions",
+        f"{base}/v2/events/{event_id}/orders/{oid}/history",
+        f"{base}/v2/events/{event_id}/orders/{oid}/refunds",
+        f"{base}/v2/events/{event_id}/registrations/{rid}",
+        f"{base}/v2/events/{event_id}/registrations/{rid}/history",
+        f"{base}/v2/events/{event_id}/registrations/{rid}/transactions",
+        f"{base}/v2/events/{event_id}/registrations/{rid}/payments",
+        f"{base}/v2/events/{event_id}/registrations/{rid}/refunds",
+        f"{base}/v2/orders/{oid}",
+        f"{base}/v2/orders/{oid}/transactions",
+        f"{base}/v2/transactions?orderId={oid}",
+        f"{base}/v2/transactions?registrationId={rid}",
+        f"{base}/v2/refunds?eventId={event_id}",
+    ]
+    for url in candidates:
+        try:
+            resp = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=15)
+            label = f"  [probe] {resp.status_code} {url}"
+            if resp.status_code == 200:
+                body = resp.text
+                lower = body.lower()
+                hit = any(k in lower for k in ("refund", "cancel"))
+                marker = " ★ contains refund/cancel" if hit else ""
+                print(f"{label}{marker}")
+                print(f"  [probe]   body[:1500]: {body[:1500]}")
+            else:
+                print(label)
+        except Exception as e:
+            print(f"  [probe] ERR {url}: {e}")
+
 # ── Monthly buckets for YoY charts ────────────────────────────────────────────
 _MONTH_NAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -804,6 +847,13 @@ if __name__ == "__main__":
     print("📥 Fetching MVU 2026 registrations...")
     regs = fetch_all(token, EVENT_ID)
     print(f"   Total records: {len(regs)}")
+
+    print("🔍 Probing endpoints for refund history…")
+    _refunded_sample = next((r for r in regs if (r.get("paymentStatus") or "").lower() == "refunded"), None)
+    if _refunded_sample:
+        _probe_refund_endpoints(token, EVENT_ID, _refunded_sample)
+    else:
+        print("   no refunded records in 2026 to probe with")
 
     print(f"📥 Fetching MVU 2025 registrations (event {EVENT_ID_2025}) for YoY...")
     try:

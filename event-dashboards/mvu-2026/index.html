@@ -153,7 +153,7 @@
   <header>
     <h1>Mindvalley U 2026</h1>
     <p>Registration Dashboard — Tallinn, Estonia</p>
-    <div class="timestamp">Data snapshot: May 07, 2026 at 22:37 UTC</div>
+    <div class="timestamp">Data snapshot: May 08, 2026 at 00:01 UTC</div>
   </header>
 
   <div class="section-label">Ticket Overview</div>
@@ -164,7 +164,7 @@
       <div class="hero-value" data-target="1105">0</div>
       <div class="hero-sub">
         <span>7d: <span class="num" data-target="67">0</span></span>
-        <span>24h: <span class="num" data-target="7">0</span></span>
+        <span>24h: <span class="num" data-target="6">0</span></span>
       </div>
     </div>
     <div class="hero-card paid">
@@ -206,12 +206,12 @@
       <div class="chart-totals">
         <div class="chart-total t2025">
           <div class="chart-total-label">2025 to date</div>
-          <div class="chart-total-val">554</div>
+          <div class="chart-total-val">556</div>
         </div>
         <div class="chart-total t2026">
           <div class="chart-total-label">2026 to date</div>
           <div class="chart-total-val">934</div>
-          <div class="chart-delta up">▲ +68.6% YoY</div>
+          <div class="chart-delta up">▲ +68.0% YoY</div>
         </div>
       </div>
     </div>
@@ -416,7 +416,7 @@
   animateCounters();
 
   // Year-over-year line charts (data injected from Python)
-  const yoy = {"labels": ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"], "paid_2025": [145, 8, 19, 7, 8, 9, 35, 161, 142, 201, 293, 379], "paid_2026": [641, 18, 7, 5, 7, 24, 30, 70, 105, 27, null, null], "paid_2025_to_date": 554, "paid_2026_to_date": 934, "available_2025": true};
+  const yoy = {"labels": ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"], "paid_2025": [145, 8, 19, 7, 8, 9, 35, 161, 142, 201, 293, 379], "paid_2026": [641, 18, 7, 5, 7, 24, 30, 70, 105, 27, null, null], "paid_2025_to_date": 556, "paid_2026_to_date": 934, "available_2025": true};
 
   function renderLineChart(svgId, dataA, dataB, labels, available2025) {
     const svg = document.getElementById(svgId);

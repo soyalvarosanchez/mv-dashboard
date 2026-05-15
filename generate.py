@@ -734,6 +734,19 @@ def render_promo_page(emoji, title, plist, flag_non_mv=False):
     if not plist:
         body = '<div class="empty">No registrations yet</div>'
     else:
+        # ── Overview stats ──
+        total = len(plist)
+        w1    = sum(1 for p in plist if p.get("week") == "Week 1")
+        w2    = sum(1 for p in plist if p.get("week") == "Week 2")
+        both  = sum(1 for p in plist if p.get("week") == "Both Weeks")
+        unass = total - w1 - w2 - both
+        stats_html = f"""<div class="stats-grid">
+  <div class="stat-card total"><div class="stat-val">{total}</div><div class="stat-label">Total</div></div>
+  <div class="stat-card w1"><div class="stat-val">{w1}</div><div class="stat-label">Week 1</div></div>
+  <div class="stat-card w2"><div class="stat-val">{w2}</div><div class="stat-label">Week 2</div></div>
+  <div class="stat-card both"><div class="stat-val">{both}</div><div class="stat-label">Both Weeks</div></div>
+  <div class="stat-card unass"><div class="stat-val">{unass}</div><div class="stat-label">Unassigned</div></div>
+</div>"""
         rows = ""
         for p in plist:
             if flag_non_mv and not p["is_mv"]:
@@ -743,7 +756,7 @@ def render_promo_page(emoji, title, plist, flag_non_mv=False):
             else:
                 badge = ""
             rows += f"<tr><td>{p['name']}{badge}</td><td>{p['ticket']}</td><td>{p['weeks_full']}</td></tr>\n"
-        body = f"""<table>
+        body = stats_html + f"""<table>
 <thead><tr><th>Name</th><th>Ticket Type</th><th>When</th></tr></thead>
 <tbody>{rows}</tbody>
 </table>"""
@@ -769,6 +782,15 @@ tr:hover td{{background:rgba(255,255,255,.03)}}
 .flag-ext{{display:inline-block;background:#f87171;color:#fff;font-size:.65rem;padding:1px 6px;border-radius:4px;margin-left:6px;font-weight:600;vertical-align:middle}}
 .mv-icon{{width:16px;height:16px;margin-left:6px;vertical-align:middle;border-radius:2px}}
 .empty{{text-align:center;padding:48px;color:var(--text-dim);font-size:1rem;background:var(--card);border-radius:16px;border:1px solid rgba(255,255,255,.06)}}
+.stats-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:24px}}
+.stat-card{{background:var(--card);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:14px 12px;text-align:center}}
+.stat-val{{font-size:1.8rem;font-weight:800;line-height:1.1}}
+.stat-label{{font-size:.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-top:4px}}
+.stat-card.total .stat-val{{color:#a78bfa}}
+.stat-card.w1 .stat-val{{color:#34d399}}
+.stat-card.w2 .stat-val{{color:#fbbf24}}
+.stat-card.both .stat-val{{color:var(--gold)}}
+.stat-card.unass .stat-val{{color:#7a7793}}
 </style>
 </head>
 <body>

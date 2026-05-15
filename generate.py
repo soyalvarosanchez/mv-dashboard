@@ -115,6 +115,28 @@ def per_month_count(records, buckets, date_getter, clamp_end=None):
     return out
 
 # ── Week assignment helper ────────────────────────────────────────────────────
+def get_week_full(reg):
+    """Returns the raw 'when_are_you_joining' form value verbatim, e.g.
+    'Week 1: July, 20 - 26' or 'Both weeks' — preserving the dates the user
+    selected. Returns '' if not set."""
+    props = reg.get("properties", {})
+    if isinstance(props, dict):
+        val = (props.get("when_are_you_joining") or "").strip()
+        if val:
+            return val
+        for k, v in props.items():
+            if "when" in k.lower() and "joining" in k.lower():
+                return str(v).strip()
+    elif isinstance(props, list):
+        for prop in props:
+            if not isinstance(prop, dict):
+                continue
+            sys_id = (prop.get("systemFieldId") or "").upper()
+            label  = (prop.get("label") or "").upper()
+            if "WHEN_ARE_YOU_JOINING" in sys_id or "WHEN_ARE_YOU_JOINING" in label:
+                return (prop.get("value") or "").strip()
+    return ""
+
 def get_week(reg):
     """Return 'Week 1', 'Week 2', 'Both Weeks', or None."""
     props = reg.get("properties", {})
@@ -211,23 +233,29 @@ def compute(regs):
     }
 
     # ── promo code lists ──
-    def promo_list(promo_code, lst=valid):
+    def promo_list(promo_codes, lst=valid):
+        """Accepts a single code or a list of codes (case-insensitive)."""
+        if isinstance(promo_codes, str):
+            promo_codes = [promo_codes]
+        codes_lower = {c.lower() for c in promo_codes}
         results = []
         for r in lst:
-            if (r.get("promoCode") or "").lower() != promo_code.lower():
+            if (r.get("promoCode") or "").lower() not in codes_lower:
                 continue
             props = r.get("properties") or {}
             email = props.get("email", "")
             name = f'{props.get("firstName", "")} {props.get("lastName", "")}'.strip()
             week = get_week(r)
             week_label = week if week else "Unassigned"
+            week_full = get_week_full(r) or "Unassigned"
             is_mv = "@mindvalley" in email.lower()
-            results.append({"name": name, "email": email, "week": week_label, "is_mv": is_mv,
+            results.append({"name": name, "email": email, "week": week_label,
+                            "weeks_full": week_full, "is_mv": is_mv,
                             "ticket": r.get("ticketName", "")})
         return results
 
     crew_list  = promo_list("MyCrewPass")
-    vol_list   = promo_list("Volunteer2Weeks")
+    vol_list   = promo_list(["Volunteer2Weeks", "Volunteer1Week"])
     hex_list   = promo_list("hexagon")
 
     return hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list
@@ -714,9 +742,9 @@ def render_promo_page(emoji, title, plist, flag_non_mv=False):
                 badge = ' <img src="https://www.mindvalley.com/favicon.ico" class="mv-icon" alt="MV">'
             else:
                 badge = ""
-            rows += f"<tr><td>{p['name']}{badge}</td><td>{p['week']}</td></tr>\n"
+            rows += f"<tr><td>{p['name']}{badge}</td><td>{p['ticket']}</td><td>{p['weeks_full']}</td></tr>\n"
         body = f"""<table>
-<thead><tr><th>Name</th><th>Weeks</th></tr></thead>
+<thead><tr><th>Name</th><th>Ticket Type</th><th>When</th></tr></thead>
 <tbody>{rows}</tbody>
 </table>"""
 
@@ -760,43 +788,6 @@ if __name__ == "__main__":
     print("📥 Fetching MVU 2026 registrations...")
     regs = fetch_all(token, EVENT_ID)
     print(f"   Total records: {len(regs)}")
-
-    # ── TEMPORARY DIAGNOSTIC: why are these volunteers missing from the list? ──
-    import unicodedata
-    from collections import Counter as _Counter
-    def _norm(s):
-        return unicodedata.normalize('NFKD', s or '').encode('ASCII','ignore').decode().lower().strip()
-    _target_names = [
-        "Agnieszka Prusik","Alejandro Soto","Aili Armväärt","Stella Scheepbouwer",
-        "Simon Tan Jin Xun","Elina Schwedland","Rai Shahnawaz","Aija Allena",
-        "Maria Christeas","Kadri Palta","Tuuliki Kasonen","Martijn van Hoek",
-        "Solanyi Ulloa","Annina Mori","Rosarmy E. Ramírez M.","Alessandra Beer",
-        "Krisztina Tora","Triin Uusen","Elena Lloveria","Sara Yanez",
-    ]
-    _norm_targets = {_norm(n): n for n in _target_names}
-    print("🔎 [diag] Looking up reported-missing volunteers in live API data...")
-    _hit = set()
-    for r in regs:
-        props = r.get("properties") or {}
-        first = props.get("firstName") or ""
-        last = props.get("lastName") or ""
-        full_norm = _norm(f"{first} {last}")
-        for tn_norm, original in _norm_targets.items():
-            if tn_norm == full_norm or (last and _norm(last) in tn_norm) or (full_norm and full_norm in tn_norm):
-                _hit.add(original)
-                print(f"  [diag] MATCH {original!r:35s} → first={first!r} last={last!r} "
-                      f"promo={r.get('promoCode')!r:25s} validity={r.get('validity')!r:10s} "
-                      f"payStatus={r.get('paymentStatus')!r:12s} ticket={r.get('ticketName')!r}")
-                break
-    _missing = set(_target_names) - _hit
-    if _missing:
-        print(f"  [diag] NOT FOUND in API data ({len(_missing)}): {sorted(_missing)}")
-    # All distinct promo codes seen
-    _promos = _Counter((r.get("promoCode") or "<none>") for r in regs)
-    print(f"  [diag] Distinct promoCode values in 2026 ({len(_promos)} unique):")
-    for code, n in sorted(_promos.items(), key=lambda x:-x[1]):
-        print(f"  [diag]   {n:5d}  {code!r}")
-    # ── END DIAGNOSTIC ──
 
     print(f"📥 Fetching MVU 2025 registrations (event {EVENT_ID_2025}) for YoY...")
     try:

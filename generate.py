@@ -761,6 +761,43 @@ if __name__ == "__main__":
     regs = fetch_all(token, EVENT_ID)
     print(f"   Total records: {len(regs)}")
 
+    # ── TEMPORARY DIAGNOSTIC: why are these volunteers missing from the list? ──
+    import unicodedata
+    from collections import Counter as _Counter
+    def _norm(s):
+        return unicodedata.normalize('NFKD', s or '').encode('ASCII','ignore').decode().lower().strip()
+    _target_names = [
+        "Agnieszka Prusik","Alejandro Soto","Aili Armväärt","Stella Scheepbouwer",
+        "Simon Tan Jin Xun","Elina Schwedland","Rai Shahnawaz","Aija Allena",
+        "Maria Christeas","Kadri Palta","Tuuliki Kasonen","Martijn van Hoek",
+        "Solanyi Ulloa","Annina Mori","Rosarmy E. Ramírez M.","Alessandra Beer",
+        "Krisztina Tora","Triin Uusen","Elena Lloveria","Sara Yanez",
+    ]
+    _norm_targets = {_norm(n): n for n in _target_names}
+    print("🔎 [diag] Looking up reported-missing volunteers in live API data...")
+    _hit = set()
+    for r in regs:
+        props = r.get("properties") or {}
+        first = props.get("firstName") or ""
+        last = props.get("lastName") or ""
+        full_norm = _norm(f"{first} {last}")
+        for tn_norm, original in _norm_targets.items():
+            if tn_norm == full_norm or (last and _norm(last) in tn_norm) or (full_norm and full_norm in tn_norm):
+                _hit.add(original)
+                print(f"  [diag] MATCH {original!r:35s} → first={first!r} last={last!r} "
+                      f"promo={r.get('promoCode')!r:25s} validity={r.get('validity')!r:10s} "
+                      f"payStatus={r.get('paymentStatus')!r:12s} ticket={r.get('ticketName')!r}")
+                break
+    _missing = set(_target_names) - _hit
+    if _missing:
+        print(f"  [diag] NOT FOUND in API data ({len(_missing)}): {sorted(_missing)}")
+    # All distinct promo codes seen
+    _promos = _Counter((r.get("promoCode") or "<none>") for r in regs)
+    print(f"  [diag] Distinct promoCode values in 2026 ({len(_promos)} unique):")
+    for code, n in sorted(_promos.items(), key=lambda x:-x[1]):
+        print(f"  [diag]   {n:5d}  {code!r}")
+    # ── END DIAGNOSTIC ──
+
     print(f"📥 Fetching MVU 2025 registrations (event {EVENT_ID_2025}) for YoY...")
     try:
         regs_2025 = fetch_all(token, EVENT_ID_2025)

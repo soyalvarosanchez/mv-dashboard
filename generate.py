@@ -72,10 +72,13 @@ def parse_date(s):
 
 # ── Paid vs Comped helper ─────────────────────────────────────────────────────
 def is_paid(r):
-    """A valid ticket is 'paid' if Bizzabo's top-level `price` field is > 0
-    (it's stored in cents, e.g. 119900 = $1199.00). 0 / missing = comped."""
+    """A valid ticket is 'paid' if Bizzabo actually charged money for it
+    (top-level `charge` field > 0). This correctly classifies as 'comped'
+    any regular ticket type (Adult/VIP/Teen/...) that was given out via a
+    100% promo code — those have a non-zero `price` (the face value of the
+    ticket type) but `charge == 0` because no money changed hands."""
     try:
-        return float(r.get("price") or 0) > 0
+        return float(r.get("charge") or 0) > 0
     except (TypeError, ValueError):
         return False
 
@@ -191,7 +194,12 @@ def compute(regs):
     d24   = now - timedelta(hours=24)
 
     valid     = [r for r in regs if r.get("validity","").lower() == "valid"]
-    refunded  = [r for r in regs if (r.get("paymentStatus") or "").lower() == "refunded"]
+    # 'Refunded' = ticket is no longer valid because it was refunded.
+    # This excludes partial refunds where the customer kept a (downgraded)
+    # valid ticket — those are still attendees.
+    refunded  = [r for r in regs
+                 if (r.get("paymentStatus") or "").lower() == "refunded"
+                 and r.get("validity","").lower() == "invalid"]
     unassigned_tickets = [r for r in valid if (r.get("formSubmissionStatus") or "").lower() == "unassigned"]
     paid      = [r for r in valid if is_paid(r)]
     comped    = [r for r in valid if not is_paid(r)]
@@ -796,6 +804,7 @@ def render_refunds_analysis_page(regs_2026, regs_2025=None):
     def _paid_refunds(regs):
         return [r for r in (regs or [])
                 if (r.get("paymentStatus") or "").lower() == "refunded"
+                and r.get("validity","").lower() == "invalid"
                 and "comped" not in (r.get("ticketName") or "").lower()]
 
     refunds_2026 = _paid_refunds(regs_2026)
@@ -844,12 +853,13 @@ def render_refunds_analysis_page(regs_2026, regs_2025=None):
     total_2025 = len(refunds_2025)
 
     # ── Tier cards ──
+    TIER_CLASSES = {"Super Early Bird": "t-seb", "Early Bird": "t-eb", "Standard": "t-std"}
     tier_cards_html = ""
     for t in TIER_ORDER:
         d = tier_counts[t]
         pct = (d["count"] / total * 100) if total else 0
         tier_cards_html += f"""
-    <div class="tier-card">
+    <div class="tier-card {TIER_CLASSES[t]}">
       <div class="tier-icon">{TIER_ICONS[t]}</div>
       <div class="tier-label">{t}</div>
       <div class="tier-count">{d['count']}</div>
@@ -896,7 +906,7 @@ def render_refunds_analysis_page(regs_2026, regs_2025=None):
 <title>Refunds Analysis — Mindvalley U 2026</title>
 <style>
 *,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
-:root{{--bg:#0b0a1a;--card:#14122a;--card-border:#2a2650;--gold:#d4a843;--gold-dim:#a07e30;--purple:#7c3aed;--purple-light:#a78bfa;--text:#e8e4f0;--text-dim:#9a93b0;--accent:#fbbf24;--accent-dark:#d97706;--green:#34d399}}
+:root{{--bg:#0b0a1a;--card:#14122a;--card-border:#2a2650;--gold:#d4a843;--gold-dim:#a07e30;--purple:#7c3aed;--purple-light:#a78bfa;--text:#e8e4f0;--text-dim:#9a93b0;--green:#34d399;--green-dim:#059669;--teal:#5eead4;--teal-dim:#14b8a6;--orange:#fb923c}}
 body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:32px 20px}}
 .container{{max-width:900px;margin:0 auto}}
 header{{text-align:center;margin-bottom:36px}}
@@ -908,21 +918,33 @@ header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
 .section-label::after{{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--gold-dim),transparent)}}
 .kpi-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}}
 .kpi-card{{background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:18px;text-align:center}}
-.kpi-val{{font-size:2rem;font-weight:800;color:var(--accent);line-height:1.1}}
+.kpi-val{{font-size:2rem;font-weight:800;line-height:1.1}}
 .kpi-label{{font-size:.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-top:6px}}
+.kpi-card.k-count .kpi-val{{color:var(--purple-light)}}
+.kpi-card.k-money .kpi-val{{color:var(--gold)}}
+.kpi-card.k-avg   .kpi-val{{color:var(--green)}}
 .tier-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}}
 .tier-card{{background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:20px;text-align:center;position:relative;overflow:hidden}}
-.tier-card::before{{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent-dark))}}
+.tier-card::before{{content:'';position:absolute;top:0;left:0;right:0;height:3px}}
 .tier-icon{{font-size:1.6rem;margin-bottom:4px}}
 .tier-label{{font-size:.78rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em}}
-.tier-count{{font-size:2.2rem;font-weight:800;color:var(--gold);line-height:1.1;margin:4px 0}}
+.tier-count{{font-size:2.2rem;font-weight:800;line-height:1.1;margin:4px 0}}
 .tier-pct{{font-size:.78rem;color:var(--text-dim)}}
-.tier-money{{font-size:1.05rem;font-weight:700;color:var(--accent);margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)}}
+.tier-money{{font-size:1.05rem;font-weight:700;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)}}
+.tier-card.t-seb::before{{background:linear-gradient(90deg,var(--gold),var(--gold-dim))}}
+.tier-card.t-seb .tier-count, .tier-card.t-seb .tier-money{{color:var(--gold)}}
+.tier-card.t-eb::before{{background:linear-gradient(90deg,var(--teal),var(--teal-dim))}}
+.tier-card.t-eb .tier-count, .tier-card.t-eb .tier-money{{color:var(--teal)}}
+.tier-card.t-std::before{{background:linear-gradient(90deg,var(--purple-light),var(--purple))}}
+.tier-card.t-std .tier-count, .tier-card.t-std .tier-money{{color:var(--purple-light)}}
 .bar-row{{display:flex;align-items:center;gap:12px;margin-bottom:8px}}
 .bar-label{{width:150px;font-size:.85rem;color:var(--text);flex-shrink:0}}
 .bar-track{{flex:1;height:28px;background:rgba(255,255,255,.04);border-radius:6px;overflow:hidden}}
-.bar-fill{{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-dark));display:flex;align-items:center;justify-content:flex-end;padding-right:10px;color:#fff;font-size:.78rem;font-weight:700;white-space:nowrap;border-radius:6px;min-width:fit-content}}
-.bar-fill.yoy-2025{{background:linear-gradient(90deg,var(--purple-light),var(--purple));opacity:.85}}
+.bar-fill{{height:100%;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;color:#fff;font-size:.78rem;font-weight:700;white-space:nowrap;border-radius:6px;min-width:fit-content}}
+.bar-cat  .bar-fill{{background:linear-gradient(90deg,var(--gold),var(--gold-dim))}}
+.bar-week .bar-fill{{background:linear-gradient(90deg,var(--teal),var(--teal-dim))}}
+.bar-yoy  .bar-fill{{background:linear-gradient(90deg,var(--gold),var(--gold-dim))}}
+.bar-yoy  .bar-fill.yoy-2025{{background:linear-gradient(90deg,var(--purple-light),var(--purple));opacity:.95}}
 .footnote{{text-align:center;font-size:.72rem;color:var(--text-dim);margin-top:40px;padding-top:20px;border-top:1px solid rgba(255,255,255,.04)}}
 @media(max-width:600px){{.bar-label{{width:100px;font-size:.75rem}}h1{{font-size:1.4rem}}.kpi-val{{font-size:1.6rem}}}}
 </style>
@@ -938,9 +960,9 @@ header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
 <div class="section">
   <div class="section-label">Headline</div>
   <div class="kpi-grid">
-    <div class="kpi-card"><div class="kpi-val">{total}</div><div class="kpi-label">Paid refunds</div></div>
-    <div class="kpi-card"><div class="kpi-val">${total_cents/100:,.0f}</div><div class="kpi-label">Total $ lost</div></div>
-    <div class="kpi-card"><div class="kpi-val">${avg_cents/100:,.0f}</div><div class="kpi-label">Avg per refund</div></div>
+    <div class="kpi-card k-count"><div class="kpi-val">{total}</div><div class="kpi-label">Paid refunds</div></div>
+    <div class="kpi-card k-money"><div class="kpi-val">${total_cents/100:,.0f}</div><div class="kpi-label">Total $ lost</div></div>
+    <div class="kpi-card k-avg"><div class="kpi-val">${avg_cents/100:,.0f}</div><div class="kpi-label">Avg per refund</div></div>
   </div>
 </div>
 
@@ -950,17 +972,17 @@ header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
   </div>
 </div>
 
-<div class="section">
+<div class="section bar-cat">
   <div class="section-label">By Ticket Category</div>
   {cat_bars}
 </div>
 
-<div class="section">
+<div class="section bar-week">
   <div class="section-label">By Week Selection</div>
   {week_bars}
 </div>
 
-<div class="section">
+<div class="section bar-yoy">
   <div class="section-label">Year-over-Year</div>
   {yoy_bars}
 </div>
@@ -1053,35 +1075,6 @@ if __name__ == "__main__":
     print("📥 Fetching MVU 2026 registrations...")
     regs = fetch_all(token, EVENT_ID)
     print(f"   Total records: {len(regs)}")
-
-    # ── TEMPORARY DIAGNOSTIC: paid/comped/refunded under current vs proposed criteria ──
-    def _safe(r, f):
-        try: return float(r.get(f) or 0)
-        except (TypeError, ValueError): return 0
-    _valid    = [r for r in regs if r.get("validity","").lower() == "valid"]
-    _refunded = [r for r in regs if (r.get("paymentStatus") or "").lower() == "refunded"]
-    _cur_paid = [r for r in _valid if _safe(r, "price") > 0]
-    _new_paid = [r for r in _valid if _safe(r, "charge") > 0]
-    _moved_paid_to_comp = [r for r in _valid if _safe(r, "price") > 0 and _safe(r, "charge") == 0]
-    _refund_full    = [r for r in _refunded if _safe(r, "charge") == 0]
-    _refund_partial = [r for r in _refunded if _safe(r, "charge") > 0]
-    print("🔬 [diag] paid/comped criterion shift (current: price>0  →  proposed: charge>0):")
-    print(f"  valid total:    {len(_valid)}")
-    print(f"  current paid:   {len(_cur_paid):4d}   →  proposed paid:   {len(_new_paid):4d}   (shift: -{len(_moved_paid_to_comp)})")
-    print(f"  current comped: {len(_valid)-len(_cur_paid):4d}   →  proposed comped: {len(_valid)-len(_new_paid):4d}   (shift: +{len(_moved_paid_to_comp)})")
-    if _moved_paid_to_comp:
-        print(f"  [diag] sample of {min(30,len(_moved_paid_to_comp))} records that would move paid→comped:")
-        for r in _moved_paid_to_comp[:30]:
-            print(f"    promo={(r.get('promoCode') or '')!r:30s} ticket={r.get('ticketName')!r:60s} price={r.get('price')} charge={r.get('charge')}")
-    print("🔬 [diag] refunded breakdown:")
-    print(f"  total (paymentStatus=refunded):     {len(_refunded)}")
-    print(f"  full refunds  (status=refunded, charge=0):  {len(_refund_full)}")
-    print(f"  partial refunds (status=refunded, charge>0): {len(_refund_partial)}")
-    if _refund_partial:
-        print(f"  [diag] sample of {min(30,len(_refund_partial))} partial refunds:")
-        for r in _refund_partial[:30]:
-            print(f"    ticket={r.get('ticketName')!r:60s} price={r.get('price')} charge={r.get('charge')} validity={r.get('validity')!r}")
-    # ── END DIAGNOSTIC ──
 
     print(f"📥 Fetching MVU 2025 registrations (event {EVENT_ID_2025}) for YoY...")
     try:

@@ -896,7 +896,7 @@ def render_refunds_analysis_page(regs_2026, regs_2025=None):
 <title>Refunds Analysis — Mindvalley U 2026</title>
 <style>
 *,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
-:root{{--bg:#0b0a1a;--card:#14122a;--card-border:#2a2650;--gold:#d4a843;--gold-dim:#a07e30;--purple:#7c3aed;--purple-light:#a78bfa;--text:#e8e4f0;--text-dim:#9a93b0;--red:#f87171;--green:#34d399}}
+:root{{--bg:#0b0a1a;--card:#14122a;--card-border:#2a2650;--gold:#d4a843;--gold-dim:#a07e30;--purple:#7c3aed;--purple-light:#a78bfa;--text:#e8e4f0;--text-dim:#9a93b0;--accent:#c97565;--accent-dark:#a55a47;--green:#34d399}}
 body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:32px 20px}}
 .container{{max-width:900px;margin:0 auto}}
 header{{text-align:center;margin-bottom:36px}}
@@ -908,20 +908,20 @@ header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
 .section-label::after{{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--gold-dim),transparent)}}
 .kpi-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}}
 .kpi-card{{background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:18px;text-align:center}}
-.kpi-val{{font-size:2rem;font-weight:800;color:var(--red);line-height:1.1}}
+.kpi-val{{font-size:2rem;font-weight:800;color:var(--accent);line-height:1.1}}
 .kpi-label{{font-size:.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-top:6px}}
 .tier-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}}
 .tier-card{{background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:20px;text-align:center;position:relative;overflow:hidden}}
-.tier-card::before{{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--red),#dc2626)}}
+.tier-card::before{{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent-dark))}}
 .tier-icon{{font-size:1.6rem;margin-bottom:4px}}
 .tier-label{{font-size:.78rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em}}
 .tier-count{{font-size:2.2rem;font-weight:800;color:var(--gold);line-height:1.1;margin:4px 0}}
 .tier-pct{{font-size:.78rem;color:var(--text-dim)}}
-.tier-money{{font-size:1.05rem;font-weight:700;color:var(--red);margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)}}
+.tier-money{{font-size:1.05rem;font-weight:700;color:var(--accent);margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)}}
 .bar-row{{display:flex;align-items:center;gap:12px;margin-bottom:8px}}
 .bar-label{{width:150px;font-size:.85rem;color:var(--text);flex-shrink:0}}
 .bar-track{{flex:1;height:28px;background:rgba(255,255,255,.04);border-radius:6px;overflow:hidden}}
-.bar-fill{{height:100%;background:linear-gradient(90deg,var(--red),#dc2626);display:flex;align-items:center;justify-content:flex-end;padding-right:10px;color:#fff;font-size:.78rem;font-weight:700;white-space:nowrap;border-radius:6px;min-width:fit-content}}
+.bar-fill{{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-dark));display:flex;align-items:center;justify-content:flex-end;padding-right:10px;color:#fff;font-size:.78rem;font-weight:700;white-space:nowrap;border-radius:6px;min-width:fit-content}}
 .bar-fill.yoy-2025{{background:linear-gradient(90deg,var(--purple-light),var(--purple));opacity:.85}}
 .footnote{{text-align:center;font-size:.72rem;color:var(--text-dim);margin-top:40px;padding-top:20px;border-top:1px solid rgba(255,255,255,.04)}}
 @media(max-width:600px){{.bar-label{{width:100px;font-size:.75rem}}h1{{font-size:1.4rem}}.kpi-val{{font-size:1.6rem}}}}

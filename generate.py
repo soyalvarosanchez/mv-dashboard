@@ -170,6 +170,20 @@ def get_week(reg):
                     return val
     return None
 
+# ── Ticket-tier classifier ────────────────────────────────────────────────────
+def classify_tier(ticket_name):
+    """Maps a Bizzabo ticketName to a pricing tier label.
+    Examples seen: 'Adult | 2 Weeks - Super Early Bird', 'VIP | 1 Week - Early Bird',
+    'Teen (13-17 y.o) | 2 Weeks - Early Bird', 'Comped Ticket | 1 Week'."""
+    s = (ticket_name or "").lower()
+    if "comped" in s:
+        return "Comped"
+    if "super early bird" in s:
+        return "Super Early Bird"
+    if "early bird" in s:
+        return "Early Bird"
+    return "Standard"
+
 # ── Main compute ─────────────────────────────────────────────────────────────
 def compute(regs):
     now   = datetime.now(tz=timezone.utc)
@@ -232,6 +246,29 @@ def compute(regs):
         "teens_w2": semaphore(teens["w2"], teens["unassigned"]),
     }
 
+    # ── refunds breakdown by tier (paid refunds only; comped excluded) ──
+    TIERS = ("Super Early Bird", "Early Bird", "Standard")
+    refunds_by_tier = {t: {"count": 0, "amount_cents": 0} for t in TIERS}
+    _refund_tier_dist = {}  # diagnostic
+    for r in refunded:
+        tname = r.get("ticketName") or "<no ticket name>"
+        _refund_tier_dist[tname] = _refund_tier_dist.get(tname, 0) + 1
+        tier = classify_tier(tname)
+        if tier in refunds_by_tier:
+            refunds_by_tier[tier]["count"] += 1
+            try:
+                refunds_by_tier[tier]["amount_cents"] += int(r.get("price") or 0)
+            except (TypeError, ValueError):
+                pass
+    # Diagnostic — show the full distribution of refunded ticketNames so we can
+    # verify the classifier didn't bucket something incorrectly into Standard
+    print("   Refunded ticket names by classified tier:")
+    for name, n in sorted(_refund_tier_dist.items(), key=lambda x: -x[1]):
+        print(f"     {n:4d}  [{classify_tier(name):16s}]  {name!r}")
+    for tier in TIERS:
+        d = refunds_by_tier[tier]
+        print(f"   Refunds {tier}: {d['count']} tickets, ${d['amount_cents']/100:,.2f}")
+
     # ── promo code lists ──
     def promo_list(promo_codes, lst=valid):
         """Accepts a single code or a list of codes (case-insensitive)."""
@@ -258,7 +295,7 @@ def compute(regs):
     vol_list   = promo_list(["Volunteer2Weeks", "Volunteer1Week"])
     hex_list   = promo_list("hexagon")
 
-    return hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list
+    return hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list, refunds_by_tier
 
 # ── Year-over-year time series ───────────────────────────────────────────────
 def compute_yoy(regs_2026, regs_2025=None):
@@ -294,8 +331,28 @@ def compute_yoy(regs_2026, regs_2025=None):
     }
 
 # ── HTML generation ───────────────────────────────────────────────────────────
-def render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list, yoy=None):
+def render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list, yoy=None, refunds_by_tier=None):
     now_str = datetime.now(tz=timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
+
+    # ── Refunds-by-tier section (paid refunds only; comped excluded) ──
+    _TIER_ORDER = ("Super Early Bird", "Early Bird", "Standard")
+    _TIER_ICONS = {"Super Early Bird": "🥇", "Early Bird": "🥈", "Standard": "🎫"}
+    refunds_by_tier = refunds_by_tier or {t: {"count": 0, "amount_cents": 0} for t in _TIER_ORDER}
+    _refund_total_count = sum(refunds_by_tier[t]["count"] for t in _TIER_ORDER)
+    _refund_total_cents = sum(refunds_by_tier[t]["amount_cents"] for t in _TIER_ORDER)
+    _comped_refunds = max(0, hero.get("refund_total", 0) - _refund_total_count)
+    _refund_tier_cards = "".join(f"""
+    <div class="cat-card">
+      <div class="cat-icon">{_TIER_ICONS[t]}</div>
+      <div class="cat-label">{t}</div>
+      <div class="cat-value" data-target="{refunds_by_tier[t]['count']}">0</div>
+      <div class="tier-lost">${refunds_by_tier[t]['amount_cents']/100:,.0f} refunded</div>
+    </div>""" for t in _TIER_ORDER)
+    refunds_tier_section = f"""
+  <div class="section-label">Refunds Breakdown by Tier <span style="font-size:.75rem;font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-left:8px">{_refund_total_count} paid refunds · ${_refund_total_cents/100:,.0f} lost · {_comped_refunds} comped excluded</span></div>
+  <div class="cat-grid">{_refund_tier_cards}
+  </div>
+"""
     yoy_json = json.dumps(yoy or {"labels":[],"paid_2025":[],"paid_2026":[],"available_2025":False})
 
     def _delta(prev, curr):
@@ -446,6 +503,7 @@ def render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_l
   .cat-breakdown .item{{text-align:center;padding:6px 0;border-radius:8px;background:rgba(255,255,255,.03)}}
   .cat-breakdown .item-val{{font-size:1.15rem;font-weight:700;color:var(--text)}}
   .cat-breakdown .item-label{{font-size:.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin-top:1px}}
+  .tier-lost{{text-align:center;font-size:.95rem;font-weight:700;color:var(--red);margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.05)}}
   .cap-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:12px}}
   .cap-card{{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:22px;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s}}
   .cap-card:hover{{transform:translateY(-3px)}}
@@ -626,7 +684,7 @@ def render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_l
     {cat_card("💎", "First Class", fc)}
     {cat_card("🎫", "Regular (Adult)", reg)}
   </div>
-
+{refunds_tier_section}
 
 </div>
 
@@ -820,11 +878,11 @@ if __name__ == "__main__":
         regs_2025 = None
 
     print("🧮 Computing metrics...")
-    hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list = compute(regs)
+    hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list, refunds_by_tier = compute(regs)
     yoy = compute_yoy(regs, regs_2025)
 
     print("✍️  Writing event-dashboards/mvu-2026/index.html...")
-    html = render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list, yoy)
+    html = render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list, yoy, refunds_by_tier)
     import os
     os.makedirs("event-dashboards/mvu-2026", exist_ok=True)
     with open("event-dashboards/mvu-2026/index.html", "w", encoding="utf-8") as f:

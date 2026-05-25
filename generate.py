@@ -829,6 +829,24 @@ def render_refunds_analysis_page(regs_2026, regs_2025=None):
     total_cents = sum(_refund_amount_cents(r) for r in refunds_2026)
     avg_cents = (total_cents // total) if total else 0
 
+    # Gross Revenue excluding tax, including refunds: sum of `price` (base, no tax)
+    # for every record that paid money at some point — i.e. currently has charge>0,
+    # or had paymentStatus=refunded. Excludes Comped Ticket products (price=0).
+    def _contributes_to_gross(r):
+        if "comped" in (r.get("ticketName") or "").lower():
+            return False
+        try:
+            price = int(r.get("price") or 0)
+            charge = int(r.get("charge") or 0)
+        except (TypeError, ValueError):
+            return False
+        if price <= 0:
+            return False
+        return charge > 0 or (r.get("paymentStatus") or "").lower() == "refunded"
+
+    gross_cents = sum(int(r.get("price") or 0) for r in (regs_2026 or []) if _contributes_to_gross(r))
+    refund_rate_pct = (total_cents / gross_cents * 100) if gross_cents else 0
+
     # ── Tier breakdown ──
     TIER_ORDER = ("Super Early Bird", "Early Bird", "Standard")
     TIER_ICONS = {"Super Early Bird": "🥇", "Early Bird": "🥈", "Standard": "🎫"}
@@ -938,6 +956,7 @@ header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
 .kpi-card.k-count .kpi-val{{color:var(--purple-light)}}
 .kpi-card.k-money .kpi-val{{color:var(--gold)}}
 .kpi-card.k-avg   .kpi-val{{color:var(--green)}}
+.kpi-card.k-rate  .kpi-val{{color:var(--orange)}}
 .tier-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}}
 .tier-card{{background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:20px;text-align:center;position:relative;overflow:hidden}}
 .tier-card::before{{content:'';position:absolute;top:0;left:0;right:0;height:3px}}
@@ -978,6 +997,7 @@ header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
     <div class="kpi-card k-count"><div class="kpi-val">{total}</div><div class="kpi-label">Paid refunds</div></div>
     <div class="kpi-card k-money"><div class="kpi-val">${total_cents/100:,.0f}</div><div class="kpi-label">Total $ lost</div></div>
     <div class="kpi-card k-avg"><div class="kpi-val">${avg_cents/100:,.0f}</div><div class="kpi-label">Avg per refund</div></div>
+    <div class="kpi-card k-rate"><div class="kpi-val">{refund_rate_pct:.1f}%</div><div class="kpi-label">Refund rate</div></div>
   </div>
 </div>
 

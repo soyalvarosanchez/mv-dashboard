@@ -896,7 +896,7 @@ def render_refunds_analysis_page(regs_2026, regs_2025=None):
 <title>Refunds Analysis — Mindvalley U 2026</title>
 <style>
 *,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
-:root{{--bg:#0b0a1a;--card:#14122a;--card-border:#2a2650;--gold:#d4a843;--gold-dim:#a07e30;--purple:#7c3aed;--purple-light:#a78bfa;--text:#e8e4f0;--text-dim:#9a93b0;--accent:#c97565;--accent-dark:#a55a47;--green:#34d399}}
+:root{{--bg:#0b0a1a;--card:#14122a;--card-border:#2a2650;--gold:#d4a843;--gold-dim:#a07e30;--purple:#7c3aed;--purple-light:#a78bfa;--text:#e8e4f0;--text-dim:#9a93b0;--accent:#fbbf24;--accent-dark:#d97706;--green:#34d399}}
 body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:32px 20px}}
 .container{{max-width:900px;margin:0 auto}}
 header{{text-align:center;margin-bottom:36px}}
@@ -1053,6 +1053,35 @@ if __name__ == "__main__":
     print("📥 Fetching MVU 2026 registrations...")
     regs = fetch_all(token, EVENT_ID)
     print(f"   Total records: {len(regs)}")
+
+    # ── TEMPORARY DIAGNOSTIC: paid/comped/refunded under current vs proposed criteria ──
+    def _safe(r, f):
+        try: return float(r.get(f) or 0)
+        except (TypeError, ValueError): return 0
+    _valid    = [r for r in regs if r.get("validity","").lower() == "valid"]
+    _refunded = [r for r in regs if (r.get("paymentStatus") or "").lower() == "refunded"]
+    _cur_paid = [r for r in _valid if _safe(r, "price") > 0]
+    _new_paid = [r for r in _valid if _safe(r, "charge") > 0]
+    _moved_paid_to_comp = [r for r in _valid if _safe(r, "price") > 0 and _safe(r, "charge") == 0]
+    _refund_full    = [r for r in _refunded if _safe(r, "charge") == 0]
+    _refund_partial = [r for r in _refunded if _safe(r, "charge") > 0]
+    print("🔬 [diag] paid/comped criterion shift (current: price>0  →  proposed: charge>0):")
+    print(f"  valid total:    {len(_valid)}")
+    print(f"  current paid:   {len(_cur_paid):4d}   →  proposed paid:   {len(_new_paid):4d}   (shift: -{len(_moved_paid_to_comp)})")
+    print(f"  current comped: {len(_valid)-len(_cur_paid):4d}   →  proposed comped: {len(_valid)-len(_new_paid):4d}   (shift: +{len(_moved_paid_to_comp)})")
+    if _moved_paid_to_comp:
+        print(f"  [diag] sample of {min(30,len(_moved_paid_to_comp))} records that would move paid→comped:")
+        for r in _moved_paid_to_comp[:30]:
+            print(f"    promo={(r.get('promoCode') or '')!r:30s} ticket={r.get('ticketName')!r:60s} price={r.get('price')} charge={r.get('charge')}")
+    print("🔬 [diag] refunded breakdown:")
+    print(f"  total (paymentStatus=refunded):     {len(_refunded)}")
+    print(f"  full refunds  (status=refunded, charge=0):  {len(_refund_full)}")
+    print(f"  partial refunds (status=refunded, charge>0): {len(_refund_partial)}")
+    if _refund_partial:
+        print(f"  [diag] sample of {min(30,len(_refund_partial))} partial refunds:")
+        for r in _refund_partial[:30]:
+            print(f"    ticket={r.get('ticketName')!r:60s} price={r.get('price')} charge={r.get('charge')} validity={r.get('validity')!r}")
+    # ── END DIAGNOSTIC ──
 
     print(f"📥 Fetching MVU 2025 registrations (event {EVENT_ID_2025}) for YoY...")
     try:

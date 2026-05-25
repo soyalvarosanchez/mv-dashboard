@@ -802,16 +802,31 @@ def render_refunds_analysis_page(regs_2026, regs_2025=None):
     now_str = datetime.now(tz=timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
 
     def _paid_refunds(regs):
+        """Records where Bizzabo flags the payment as refunded. Includes both
+        fully-refunded (validity=invalid, charge=0) and partial refunds where
+        the customer kept a downgraded ticket. Explicit Comped Ticket
+        products (price=0) excluded so they don't pad the count."""
         return [r for r in (regs or [])
                 if (r.get("paymentStatus") or "").lower() == "refunded"
-                and r.get("validity","").lower() == "invalid"
                 and "comped" not in (r.get("ticketName") or "").lower()]
+
+    def _refund_amount_cents(r):
+        """How much money was actually given back for this refund.
+        For full refunds (charge=0): price - 0 = price.
+        For partial refunds:        price - residual charge.
+        Edge case charge>price (tax/fees inflate): 0 (no $ counted)."""
+        try:
+            p = int(r.get("price") or 0)
+            c = int(r.get("charge") or 0)
+            return max(0, p - c)
+        except (TypeError, ValueError):
+            return 0
 
     refunds_2026 = _paid_refunds(regs_2026)
     refunds_2025 = _paid_refunds(regs_2025)
 
     total = len(refunds_2026)
-    total_cents = sum(int(r.get("price") or 0) for r in refunds_2026)
+    total_cents = sum(_refund_amount_cents(r) for r in refunds_2026)
     avg_cents = (total_cents // total) if total else 0
 
     # ── Tier breakdown ──
@@ -822,7 +837,7 @@ def render_refunds_analysis_page(regs_2026, regs_2025=None):
         t = classify_tier(r.get("ticketName"))
         if t in tier_counts:
             tier_counts[t]["count"] += 1
-            tier_counts[t]["cents"] += int(r.get("price") or 0)
+            tier_counts[t]["cents"] += _refund_amount_cents(r)
 
     # ── Category breakdown (Adult and Standard ticket names both → "Standard") ──
     def classify_cat(name):

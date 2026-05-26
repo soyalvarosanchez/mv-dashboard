@@ -1186,17 +1186,6 @@ if __name__ == "__main__":
     regs = fetch_all(token, EVENT_ID)
     print(f"   Total records: {len(regs)}")
 
-    # ── TEMPORARY DIAGNOSTIC: promo codes used per Comped Ticket type ──
-    from collections import Counter as _CCounter
-    _valid_only = [r for r in regs if r.get("validity","").lower() == "valid"]
-    for _target in ("Comped Ticket | 2 Weeks", "Comped Ticket | 1 Week"):
-        _matches = [r for r in _valid_only if (r.get("ticketName") or "").strip() == _target]
-        _promos = _CCounter((r.get("promoCode") or "<none>") for r in _matches)
-        print(f"🔬 [diag] Promo codes for {_target!r} (valid, {len(_matches)} records):")
-        for code, n in sorted(_promos.items(), key=lambda x: -x[1]):
-            print(f"     {n:5d}  {code!r}")
-    # ── END DIAGNOSTIC ──
-
     print(f"📥 Fetching MVU 2025 registrations (event {EVENT_ID_2025}) for YoY...")
     try:
         regs_2025 = fetch_all(token, EVENT_ID_2025)

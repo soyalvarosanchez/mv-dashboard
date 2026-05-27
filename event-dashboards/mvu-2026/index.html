@@ -154,7 +154,7 @@
   <header>
     <h1>Mindvalley U 2026</h1>
     <p>Registration Dashboard — Tallinn, Estonia</p>
-    <div class="timestamp">Data snapshot: May 26, 2026 at 22:51 UTC</div>
+    <div class="timestamp">Data snapshot: May 27, 2026 at 00:15 UTC</div>
   </header>
 
   <div class="section-label">Ticket Overview</div>
@@ -189,7 +189,7 @@
     <div class="hero-card unassigned">
       <div class="hero-icon">🔔</div>
       <div class="hero-label">Unassigned Tickets</div>
-      <div class="hero-value" data-target="46">0</div>
+      <div class="hero-value" data-target="45">0</div>
     </div>
   </div>
 
@@ -207,12 +207,12 @@
       <div class="chart-totals">
         <div class="chart-total t2025">
           <div class="chart-total-label">2025 to date</div>
-          <div class="chart-total-val">535</div>
+          <div class="chart-total-val">537</div>
         </div>
         <div class="chart-total t2026">
           <div class="chart-total-label">2026 to date</div>
           <div class="chart-total-val">907</div>
-          <div class="chart-delta up">▲ +69.5% YoY</div>
+          <div class="chart-delta up">▲ +68.9% YoY</div>
         </div>
       </div>
     </div>
@@ -439,7 +439,7 @@
   animateCounters();
 
   // Year-over-year line charts (data injected from Python)
-  const yoy = {"labels": ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"], "paid_2025": [145, 8, 19, 7, 8, 9, 35, 161, 104, 50, 221, 223], "paid_2026": [591, 13, 6, 5, 7, 24, 28, 60, 97, 76, null, null], "paid_2025_to_date": 535, "paid_2026_to_date": 907, "available_2025": true};
+  const yoy = {"labels": ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"], "paid_2025": [145, 8, 19, 7, 8, 9, 35, 161, 104, 50, 221, 223], "paid_2026": [591, 13, 6, 5, 7, 24, 28, 60, 97, 76, null, null], "paid_2025_to_date": 537, "paid_2026_to_date": 907, "available_2025": true};
 
   function renderLineChart(svgId, dataA, dataB, labels, available2025) {
     const svg = document.getElementById(svgId);

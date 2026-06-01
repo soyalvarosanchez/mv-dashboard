@@ -154,7 +154,7 @@
   <header>
     <h1>Mindvalley U 2026</h1>
     <p>Registration Dashboard — Tallinn, Estonia</p>
-    <div class="timestamp">Data snapshot: June 01, 2026 at 01:41 UTC</div>
+    <div class="timestamp">Data snapshot: June 01, 2026 at 07:10 UTC</div>
   </header>
 
   <div class="section-label">Ticket Overview</div>
@@ -164,7 +164,7 @@
       <div class="hero-label">Valid Tickets</div>
       <div class="hero-value" data-target="1201">0</div>
       <div class="hero-sub">
-        <span>7d: <span class="num" data-target="90">0</span></span>
+        <span>7d: <span class="num" data-target="89">0</span></span>
         <span>24h: <span class="num" data-target="14">0</span></span>
       </div>
     </div>
@@ -173,14 +173,14 @@
       <div class="hero-label">Paid Tickets</div>
       <div class="hero-value" data-target="943">0</div>
       <div class="hero-sub">
-        <span>7d: <span class="num" data-target="79">0</span></span>
+        <span>7d: <span class="num" data-target="78">0</span></span>
         <span>24h: <span class="num" data-target="14">0</span></span>
       </div>
     </div>
     <div class="hero-card refund">
       <div class="hero-icon">🔄</div>
       <div class="hero-label">Refunded Tickets</div>
-      <div class="hero-value" data-target="255">0</div>
+      <div class="hero-value" data-target="256">0</div>
       <div class="hero-sub">
         <span>7d: <span class="num" data-target="0">0</span></span>
         <span>24h: <span class="num" data-target="0">0</span></span>
@@ -358,10 +358,10 @@
     <div class="cat-card">
       <div class="cat-icon">👑</div>
       <div class="cat-label">VIP</div>
-      <div class="cat-value" data-target="200">0</div>
+      <div class="cat-value" data-target="199">0</div>
       <div class="cat-breakdown">
         <div class="item"><div class="item-val" data-target="149">0</div><div class="item-label">Week 1</div></div>
-        <div class="item"><div class="item-val" data-target="120">0</div><div class="item-label">Week 2</div></div>
+        <div class="item"><div class="item-val" data-target="119">0</div><div class="item-label">Week 2</div></div>
         <div class="item"><div class="item-val" data-target="14">0</div><div class="item-label">No Week Selected</div></div>
       </div>
     </div>
@@ -389,13 +389,13 @@
     </div>
   </div>
 
-  <div class="section-label">Refunds Breakdown by Tier <span style="font-size:.75rem;font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-left:8px">255 paid refunds · $333,765 lost · 0 comped excluded</span></div>
+  <div class="section-label">Refunds Breakdown by Tier <span style="font-size:.75rem;font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-left:8px">256 paid refunds · $335,264 lost · 0 comped excluded</span></div>
   <div class="cat-grid">
     <div class="cat-card">
       <div class="cat-icon">🥇</div>
       <div class="cat-label">Super Early Bird</div>
-      <div class="cat-value" data-target="198">0</div>
-      <div class="tier-lost">$228,302 refunded</div>
+      <div class="cat-value" data-target="199">0</div>
+      <div class="tier-lost">$229,801 refunded</div>
     </div>
     <div class="cat-card">
       <div class="cat-icon">🥈</div>
@@ -439,7 +439,7 @@
   animateCounters();
 
   // Year-over-year line charts (data injected from Python)
-  const yoy = {"labels": ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"], "paid_2025": [145, 8, 19, 7, 8, 9, 35, 161, 104, 50, 221, 223], "paid_2026": [577, 13, 6, 5, 7, 24, 27, 60, 95, 129, 0, null], "paid_2025_to_date": 546, "paid_2026_to_date": 943, "available_2025": true};
+  const yoy = {"labels": ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"], "paid_2025": [145, 8, 19, 7, 8, 9, 35, 161, 104, 50, 221, 223], "paid_2026": [576, 13, 6, 5, 7, 24, 27, 60, 95, 129, 1, null], "paid_2025_to_date": 546, "paid_2026_to_date": 943, "available_2025": true};
 
   function renderLineChart(svgId, dataA, dataB, labels, available2025) {
     const svg = document.getElementById(svgId);

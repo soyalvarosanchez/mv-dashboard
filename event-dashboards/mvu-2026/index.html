@@ -154,7 +154,7 @@
   <header>
     <h1>Mindvalley U 2026</h1>
     <p>Registration Dashboard — Tallinn, Estonia</p>
-    <div class="timestamp">Data snapshot: June 05, 2026 at 12:16 UTC</div>
+    <div class="timestamp">Data snapshot: June 05, 2026 at 15:36 UTC</div>
   </header>
 
   <div class="section-label">Ticket Overview</div>
@@ -162,25 +162,25 @@
     <div class="hero-card valid">
       <div class="hero-icon">🎟️</div>
       <div class="hero-label">Valid Tickets</div>
-      <div class="hero-value" data-target="1214">0</div>
+      <div class="hero-value" data-target="1216">0</div>
       <div class="hero-sub">
-        <span>7d: <span class="num" data-target="77">0</span></span>
-        <span>24h: <span class="num" data-target="9">0</span></span>
+        <span>7d: <span class="num" data-target="78">0</span></span>
+        <span>24h: <span class="num" data-target="10">0</span></span>
       </div>
     </div>
     <div class="hero-card paid">
       <div class="hero-icon">💳</div>
       <div class="hero-label">Paid Tickets</div>
-      <div class="hero-value" data-target="956">0</div>
+      <div class="hero-value" data-target="958">0</div>
       <div class="hero-sub">
-        <span>7d: <span class="num" data-target="73">0</span></span>
-        <span>24h: <span class="num" data-target="9">0</span></span>
+        <span>7d: <span class="num" data-target="74">0</span></span>
+        <span>24h: <span class="num" data-target="10">0</span></span>
       </div>
     </div>
     <div class="hero-card refund">
       <div class="hero-icon">🔄</div>
       <div class="hero-label">Refunded Tickets</div>
-      <div class="hero-value" data-target="272">0</div>
+      <div class="hero-value" data-target="273">0</div>
       <div class="hero-sub">
         <span>7d: <span class="num" data-target="1">0</span></span>
         <span>24h: <span class="num" data-target="0">0</span></span>
@@ -211,8 +211,8 @@
         </div>
         <div class="chart-total t2026">
           <div class="chart-total-label">2026 to date</div>
-          <div class="chart-total-val">956</div>
-          <div class="chart-delta up">▲ +71.9% YoY</div>
+          <div class="chart-total-val">958</div>
+          <div class="chart-delta up">▲ +72.3% YoY</div>
         </div>
       </div>
     </div>
@@ -380,16 +380,16 @@
     <div class="cat-card">
       <div class="cat-icon">🎫</div>
       <div class="cat-label">Regular (Adult)</div>
-      <div class="cat-value" data-target="525">0</div>
+      <div class="cat-value" data-target="524">0</div>
       <div class="cat-breakdown">
         <div class="item"><div class="item-val" data-target="376">0</div><div class="item-label">Week 1</div></div>
-        <div class="item"><div class="item-val" data-target="321">0</div><div class="item-label">Week 2</div></div>
+        <div class="item"><div class="item-val" data-target="320">0</div><div class="item-label">Week 2</div></div>
         <div class="item"><div class="item-val" data-target="68">0</div><div class="item-label">No Week Selected</div></div>
       </div>
     </div>
   </div>
 
-  <div class="section-label">Refunds Breakdown by Tier <span style="font-size:.75rem;font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-left:8px">272 paid refunds · $362,968 lost · 0 comped excluded</span></div>
+  <div class="section-label">Refunds Breakdown by Tier <span style="font-size:.75rem;font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-left:8px">273 paid refunds · $364,467 lost · 0 comped excluded</span></div>
   <div class="cat-grid">
     <div class="cat-card">
       <div class="cat-icon">🥇</div>
@@ -400,8 +400,8 @@
     <div class="cat-card">
       <div class="cat-icon">🥈</div>
       <div class="cat-label">Early Bird</div>
-      <div class="cat-value" data-target="48">0</div>
-      <div class="tier-lost">$87,702 refunded</div>
+      <div class="cat-value" data-target="49">0</div>
+      <div class="tier-lost">$89,201 refunded</div>
     </div>
     <div class="cat-card">
       <div class="cat-icon">🎫</div>
@@ -439,7 +439,7 @@
   animateCounters();
 
   // Year-over-year line charts (data injected from Python)
-  const yoy = {"labels": ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"], "paid_2025": [145, 8, 19, 7, 8, 9, 35, 161, 104, 50, 221, 223], "paid_2026": [568, 13, 6, 5, 7, 24, 27, 59, 94, 123, 30, null], "paid_2025_to_date": 556, "paid_2026_to_date": 956, "available_2025": true};
+  const yoy = {"labels": ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"], "paid_2025": [145, 8, 19, 7, 8, 9, 35, 161, 104, 50, 221, 223], "paid_2026": [568, 13, 6, 5, 7, 24, 27, 58, 94, 123, 33, null], "paid_2025_to_date": 556, "paid_2026_to_date": 958, "available_2025": true};
 
   function renderLineChart(svgId, dataA, dataB, labels, available2025) {
     const svg = document.getElementById(svgId);

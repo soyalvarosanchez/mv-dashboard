@@ -154,7 +154,7 @@
   <header>
     <h1>Mindvalley U 2026</h1>
     <p>Registration Dashboard — Tallinn, Estonia</p>
-    <div class="timestamp">Data snapshot: June 17, 2026 at 00:23 UTC</div>
+    <div class="timestamp">Data snapshot: June 17, 2026 at 05:27 UTC</div>
   </header>
 
   <div class="section-label">Ticket Overview</div>
@@ -164,8 +164,8 @@
       <div class="hero-label">Valid Tickets</div>
       <div class="hero-value" data-target="1262">0</div>
       <div class="hero-sub">
-        <span>7d: <span class="num" data-target="65">0</span></span>
-        <span>24h: <span class="num" data-target="6">0</span></span>
+        <span>7d: <span class="num" data-target="66">0</span></span>
+        <span>24h: <span class="num" data-target="4">0</span></span>
       </div>
     </div>
     <div class="hero-card paid">
@@ -173,16 +173,16 @@
       <div class="hero-label">Paid Tickets</div>
       <div class="hero-value" data-target="999">0</div>
       <div class="hero-sub">
-        <span>7d: <span class="num" data-target="51">0</span></span>
-        <span>24h: <span class="num" data-target="6">0</span></span>
+        <span>7d: <span class="num" data-target="52">0</span></span>
+        <span>24h: <span class="num" data-target="4">0</span></span>
       </div>
     </div>
     <div class="hero-card refund">
       <div class="hero-icon">🔄</div>
       <div class="hero-label">Refunded Tickets</div>
-      <div class="hero-value" data-target="352">0</div>
+      <div class="hero-value" data-target="353">0</div>
       <div class="hero-sub">
-        <span>7d: <span class="num" data-target="3">0</span></span>
+        <span>7d: <span class="num" data-target="2">0</span></span>
         <span>24h: <span class="num" data-target="0">0</span></span>
       </div>
     </div>
@@ -389,7 +389,7 @@
     </div>
   </div>
 
-  <div class="section-label">Refunds Breakdown by Tier <span style="font-size:.75rem;font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-left:8px">352 paid refunds · $467,198 lost · 0 comped excluded</span></div>
+  <div class="section-label">Refunds Breakdown by Tier <span style="font-size:.75rem;font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-left:8px">353 paid refunds · $468,297 lost · 0 comped excluded</span></div>
   <div class="cat-grid">
     <div class="cat-card">
       <div class="cat-icon">🥇</div>
@@ -406,8 +406,8 @@
     <div class="cat-card">
       <div class="cat-icon">🎫</div>
       <div class="cat-label">Standard</div>
-      <div class="cat-value" data-target="29">0</div>
-      <div class="tier-lost">$46,371 refunded</div>
+      <div class="cat-value" data-target="30">0</div>
+      <div class="tier-lost">$47,470 refunded</div>
     </div>
   </div>
 
@@ -439,7 +439,7 @@
   animateCounters();
 
   // Year-over-year line charts (data injected from Python)
-  const yoy = {"labels": ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"], "paid_2025": [145, 8, 19, 7, 8, 9, 35, 161, 104, 50, 221, 223], "paid_2026": [529, 11, 6, 5, 6, 24, 24, 52, 87, 120, 135, null], "paid_2025_to_date": 647, "paid_2026_to_date": 999, "available_2025": true};
+  const yoy = {"labels": ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"], "paid_2025": [145, 8, 19, 7, 8, 9, 35, 161, 104, 50, 221, 223], "paid_2026": [529, 11, 6, 5, 6, 24, 24, 52, 87, 119, 136, null], "paid_2025_to_date": 647, "paid_2026_to_date": 999, "available_2025": true};
 
   function renderLineChart(svgId, dataA, dataB, labels, available2025) {
     const svg = document.getElementById(svgId);

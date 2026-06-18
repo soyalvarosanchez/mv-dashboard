@@ -204,10 +204,14 @@ def compute(regs):
     paid      = [r for r in valid if is_paid(r)]
     comped    = [r for r in valid if not is_paid(r)]
 
-    def recent(lst, since):
-        return sum(1 for r in lst if (d := parse_date(r.get("registrationDate"))) and d >= since)
+    def recent(lst, since, date_field="registrationDate"):
+        return sum(1 for r in lst if (d := parse_date(r.get(date_field))) and d >= since)
 
     # ── hero counts ──
+    # valid/paid use registrationDate (when ticket was bought).
+    # refund_7d/24h use `modified` instead — Bizzabo doesn't expose a refund
+    # timestamp, but for active events the record is touched at refund time,
+    # so `modified` is a reliable proxy (validated against Activity Stream).
     hero = {
         "valid_total":    len(valid),
         "valid_7d":       recent(valid, d7),
@@ -217,8 +221,8 @@ def compute(regs):
         "paid_24h":       recent(paid, d24),
         "comped_total":   len(comped),
         "refund_total":   len(refunded),
-        "refund_7d":      recent(refunded, d7),
-        "refund_24h":     recent(refunded, d24),
+        "refund_7d":      recent(refunded, d7,  "modified"),
+        "refund_24h":     recent(refunded, d24, "modified"),
         "unassigned":     len(unassigned_tickets),
     }
 
@@ -1293,34 +1297,6 @@ if __name__ == "__main__":
     print("📥 Fetching MVU 2026 registrations...")
     regs = fetch_all(token, EVENT_ID)
     print(f"   Total records: {len(regs)}")
-
-    # ── TEMPORARY DIAGNOSTIC: test `modified` field as refund-date proxy ──
-    _now_utc = datetime.now(tz=timezone.utc)
-    _d24 = _now_utc - timedelta(hours=24)
-    _d7  = _now_utc - timedelta(days=7)
-    _refunded_2026 = [r for r in regs if (r.get("paymentStatus") or "").lower() == "refunded"]
-    def _get_mod(r):
-        return parse_date(r.get("modified"))
-    _sorted = sorted(
-        _refunded_2026,
-        key=lambda r: _get_mod(r) or datetime.min.replace(tzinfo=timezone.utc),
-        reverse=True,
-    )
-    _recent_24h = [r for r in _refunded_2026 if (m := _get_mod(r)) and m >= _d24]
-    _recent_7d  = [r for r in _refunded_2026 if (m := _get_mod(r)) and m >= _d7]
-    print(f"🔬 [diag] Testing `modified` as refund-date proxy for 2026 refunded records ({len(_refunded_2026)} total)")
-    print(f"  Refunded with modified in last 24h: {len(_recent_24h)}")
-    print(f"  Refunded with modified in last  7d: {len(_recent_7d)}")
-    print(f"  Top 30 most recently modified (compare against Bizzabo Activity Stream):")
-    for r in _sorted[:30]:
-        props = r.get("properties") or {}
-        name = f"{(props.get('firstName') or '').strip()} {(props.get('lastName') or '').strip()}".strip()
-        email = props.get("email", "")
-        ticket = r.get("ticketName") or ""
-        mod = _get_mod(r)
-        reg_date = parse_date(r.get("registrationDate"))
-        print(f"    modified={str(mod):27s}  reg={str(reg_date):27s}  {name:35s}  {ticket}")
-    # ── END DIAGNOSTIC ──
 
     print(f"📥 Fetching MVU 2025 registrations (event {EVENT_ID_2025}) for YoY...")
     try:

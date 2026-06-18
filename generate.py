@@ -275,9 +275,19 @@ def compute(regs):
     reg      = stats_from([r for r in valid if cat_for_breakdown(r.get("ticketName")) == 'reg'])
     # 3 Days card: cross-cutting view — all 3-day tickets across VIP / First Class / Regular.
     # Same records also appear in their tier card (double-count by design).
-    threeday = stats_from([r for r in valid
-                           if is_three_day(r.get("ticketName"))
-                           and cat_for_breakdown(r.get("ticketName")) is not None])
+    # Structured as a per-tier breakdown so the card can show Standard / VIP /
+    # First Class rows each with their own Week 1 / Week 2 / Unassigned sub-bucket.
+    threeday_recs = [r for r in valid
+                     if is_three_day(r.get("ticketName"))
+                     and cat_for_breakdown(r.get("ticketName")) is not None]
+    threeday = {
+        "total":   len(threeday_recs),
+        "by_tier": {
+            "Standard":    stats_from([r for r in threeday_recs if cat_for_breakdown(r.get("ticketName")) == 'reg']),
+            "VIP":         stats_from([r for r in threeday_recs if cat_for_breakdown(r.get("ticketName")) == 'vip']),
+            "First Class": stats_from([r for r in threeday_recs if cat_for_breakdown(r.get("ticketName")) == 'fc']),
+        },
+    }
 
     # ── capacity semaphore ──
     def semaphore(confirmed, unassigned_count):
@@ -467,6 +477,31 @@ def render_html(hero, kids, teens, vip, fc, reg, threeday, cap, crew_list, vol_l
       </div>
     </div>"""
 
+    def threeday_card(td):
+        """Custom 3 Days card: rows by tier (Standard / VIP / First Class),
+        each with W1 / W2 / Unassigned counts."""
+        rows = ""
+        for tier_name in ("Standard", "VIP", "First Class"):
+            s = td["by_tier"].get(tier_name, {"total":0,"w1":0,"w2":0,"unassigned":0})
+            rows += f'''
+        <tr>
+          <td class="td-tier">{tier_name}<span class="td-tier-total" data-target="{s['total']}">0</span></td>
+          <td data-target="{s['w1']}">0</td>
+          <td data-target="{s['w2']}">0</td>
+          <td data-target="{s['unassigned']}">0</td>
+        </tr>'''
+        return f"""
+    <div class="cat-card">
+      <div class="cat-icon">⏱️</div>
+      <div class="cat-label">3 Days</div>
+      <div class="cat-value" data-target="{td['total']}">0</div>
+      <table class="td-mini">
+        <thead><tr><th></th><th>W1</th><th>W2</th><th>None</th></tr></thead>
+        <tbody>{rows}
+        </tbody>
+      </table>
+    </div>"""
+
     def promo_section(emoji, title, plist, flag_non_mv=False):
         if not plist:
             return f"""
@@ -550,6 +585,13 @@ def render_html(hero, kids, teens, vip, fc, reg, threeday, cap, crew_list, vol_l
   .cat-breakdown .item{{text-align:center;padding:6px 0;border-radius:8px;background:rgba(255,255,255,.03)}}
   .cat-breakdown .item-val{{font-size:1.15rem;font-weight:700;color:var(--text)}}
   .cat-breakdown .item-label{{font-size:.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin-top:1px}}
+  .td-mini{{width:100%;border-collapse:collapse;margin-top:6px}}
+  .td-mini th{{color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:5px 4px;font-size:.62rem;text-align:right;border-bottom:1px solid rgba(255,255,255,.06)}}
+  .td-mini th:first-child{{text-align:left}}
+  .td-mini td{{padding:6px 4px;font-size:.85rem;font-weight:700;color:var(--text);text-align:right;border-bottom:1px solid rgba(255,255,255,.03);font-variant-numeric:tabular-nums}}
+  .td-mini tbody tr:last-child td{{border-bottom:none}}
+  .td-mini td.td-tier{{text-align:left;color:var(--text-dim);font-weight:500;font-size:.78rem;white-space:nowrap}}
+  .td-mini .td-tier-total{{color:var(--gold);font-weight:700;margin-left:6px;font-size:.85rem}}
   .tier-lost{{text-align:center;font-size:.95rem;font-weight:700;color:var(--red);margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.05)}}
   .cap-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:12px}}
   .cap-card{{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:22px;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s}}
@@ -730,7 +772,7 @@ def render_html(hero, kids, teens, vip, fc, reg, threeday, cap, crew_list, vol_l
     {cat_card("👑", "VIP", vip)}
     {cat_card("💎", "First Class", fc)}
     {cat_card("🎫", "Regular (Adult)", reg)}
-    {cat_card("⏱️", "3 Days", threeday)}
+    {threeday_card(threeday)}
   </div>
 {refunds_tier_section}
 

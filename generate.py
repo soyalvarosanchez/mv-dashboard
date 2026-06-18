@@ -238,11 +238,46 @@ def compute(regs):
             if not w:                          unass += 1
         return {"total": len(hits), "w1": w1, "w2": w2, "unassigned": unass}
 
+    def stats_from(records):
+        """Same week-bucket counters as cat_stats but takes a pre-filtered list."""
+        w1 = w2 = unass = 0
+        for r in records:
+            w = get_week(r)
+            if w in ("Week 1", "Both Weeks"):  w1   += 1
+            if w in ("Week 2", "Both Weeks"):  w2   += 1
+            if not w:                          unass += 1
+        return {"total": len(records), "w1": w1, "w2": w2, "unassigned": unass}
+
+    def cat_for_breakdown(name):
+        """Precedence-based bucket for the Ticket Breakdown section.
+        Returns 'vip' / 'fc' / 'reg' / None. None = excluded (sales-focused
+        section, so comped/hexagon/friends/crew and the kid/teen tickets
+        which already have their own section are filtered out)."""
+        if not name: return None
+        t = name.lower()
+        if 'comped' in t:               return None
+        if 'hexagon' in t:               return None
+        if 'friends of vishen' in t:     return None
+        if 'crew' in t:                  return None
+        if 'kid' in t or 'teen' in t:    return None
+        if 'first class' in t:           return 'fc'
+        if 'vip' in t:                   return 'vip'
+        if 'adult' in t or 'standard' in t: return 'reg'
+        return None
+
+    def is_three_day(name):
+        return bool(name) and '3 day' in name.lower()
+
     kids  = cat_stats(valid, "kid")
     teens = cat_stats(valid, "teen")
-    vip   = cat_stats(valid, "vip")
-    fc    = cat_stats(valid, "first class")
-    reg   = cat_stats(valid, "adult")
+    vip      = stats_from([r for r in valid if cat_for_breakdown(r.get("ticketName")) == 'vip'])
+    fc       = stats_from([r for r in valid if cat_for_breakdown(r.get("ticketName")) == 'fc'])
+    reg      = stats_from([r for r in valid if cat_for_breakdown(r.get("ticketName")) == 'reg'])
+    # 3 Days card: cross-cutting view — all 3-day tickets across VIP / First Class / Regular.
+    # Same records also appear in their tier card (double-count by design).
+    threeday = stats_from([r for r in valid
+                           if is_three_day(r.get("ticketName"))
+                           and cat_for_breakdown(r.get("ticketName")) is not None])
 
     # ── capacity semaphore ──
     def semaphore(confirmed, unassigned_count):
@@ -307,7 +342,7 @@ def compute(regs):
     vol_list   = promo_list(["Volunteer2Weeks", "Volunteer1Week"])
     hex_list   = promo_list("hexagon")
 
-    return hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list, refunds_by_tier
+    return hero, kids, teens, vip, fc, reg, threeday, cap, crew_list, vol_list, hex_list, refunds_by_tier
 
 # ── Year-over-year time series ───────────────────────────────────────────────
 def compute_yoy(regs_2026, regs_2025=None):
@@ -343,7 +378,7 @@ def compute_yoy(regs_2026, regs_2025=None):
     }
 
 # ── HTML generation ───────────────────────────────────────────────────────────
-def render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list, yoy=None, refunds_by_tier=None):
+def render_html(hero, kids, teens, vip, fc, reg, threeday, cap, crew_list, vol_list, hex_list, yoy=None, refunds_by_tier=None):
     now_str = datetime.now(tz=timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
 
     # ── Refunds-by-tier section (paid refunds only; comped excluded) ──
@@ -695,6 +730,7 @@ def render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_l
     {cat_card("👑", "VIP", vip)}
     {cat_card("💎", "First Class", fc)}
     {cat_card("🎫", "Regular (Adult)", reg)}
+    {cat_card("⏱️", "3 Days", threeday)}
   </div>
 {refunds_tier_section}
 
@@ -1307,11 +1343,11 @@ if __name__ == "__main__":
         regs_2025 = None
 
     print("🧮 Computing metrics...")
-    hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list, refunds_by_tier = compute(regs)
+    hero, kids, teens, vip, fc, reg, threeday, cap, crew_list, vol_list, hex_list, refunds_by_tier = compute(regs)
     yoy = compute_yoy(regs, regs_2025)
 
     print("✍️  Writing event-dashboards/mvu-2026/index.html...")
-    html = render_html(hero, kids, teens, vip, fc, reg, cap, crew_list, vol_list, hex_list, yoy, refunds_by_tier)
+    html = render_html(hero, kids, teens, vip, fc, reg, threeday, cap, crew_list, vol_list, hex_list, yoy, refunds_by_tier)
     import os
     os.makedirs("event-dashboards/mvu-2026", exist_ok=True)
     with open("event-dashboards/mvu-2026/index.html", "w", encoding="utf-8") as f:

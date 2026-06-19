@@ -22,10 +22,10 @@
       "description": ""
     },
     {
-      "id": "mvu-2026-hexagon",
-      "label": "Hexagon",
-      "icon": "🌟",
-      "path": "event-dashboards/mvu-2026/hexagon.html",
+      "id": "mvu-2026-special-guests",
+      "label": "Special Guests",
+      "icon": "⭐",
+      "path": "event-dashboards/mvu-2026/special-guests.html",
       "description": ""
     }
   ]

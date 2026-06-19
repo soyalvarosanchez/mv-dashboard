@@ -117,6 +117,24 @@ def per_month_count(records, buckets, date_getter, clamp_end=None):
         out.append(sum(1 for d in parsed if d and start <= d <= eff_end))
     return out
 
+# ── Attendee-name helper with buyer fallback ─────────────────────────────────
+def get_attendee_name(r):
+    """Return the attendee's name. If the ticket has no attendee assigned yet
+    (empty firstName/lastName in properties), fall back to the buyer's name
+    from billingAddress and suffix with ' (Unassigned)' so it's clear the
+    ticket still needs to be claimed by an actual attendee."""
+    props = r.get("properties") or {}
+    first = (props.get("firstName") or "").strip()
+    last  = (props.get("lastName")  or "").strip()
+    name = f"{first} {last}".strip()
+    if name:
+        return name
+    billing = r.get("billingAddress") or {}
+    b_first = (billing.get("firstName") or "").strip()
+    b_last  = (billing.get("lastName")  or "").strip()
+    buyer = f"{b_first} {b_last}".strip()
+    return f"{buyer} (Unassigned)" if buyer else "(Unassigned)"
+
 # ── Week assignment helper ────────────────────────────────────────────────────
 def get_week_full(reg):
     """Returns the raw 'when_are_you_joining' form value verbatim, e.g.
@@ -398,7 +416,7 @@ def compute(regs):
                 continue
             props = r.get("properties") or {}
             email = props.get("email", "")
-            name = f'{props.get("firstName", "")} {props.get("lastName", "")}'.strip()
+            name = get_attendee_name(r)
             week = get_week(r)
             week_label = week if week else "Unassigned"
             week_full = get_week_full(r) or "Unassigned"
@@ -424,9 +442,7 @@ def compute(regs):
         canonical = sg_promos[p]
         props = r.get("properties") or {}
         email = props.get("email", "")
-        first = (props.get("firstName") or "").strip()
-        last  = (props.get("lastName")  or "").strip()
-        name = f"{first} {last}".strip()
+        name = get_attendee_name(r)
         week = get_week(r)
         is_mv = "@mindvalley" in email.lower()
         sg_data[canonical].append({

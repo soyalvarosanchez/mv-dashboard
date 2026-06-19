@@ -187,6 +187,38 @@ def classify_tier(ticket_name):
         return "Early Bird"
     return "Standard"
 
+# ── Special Guests categories: identified strictly by promo code ─────────────
+# Each entry: promo code, display name, icon, and the benefits granted (used
+# to render small colour-coded tags on the standalone page).
+SPECIAL_GUESTS_CATEGORIES = [
+    {"promo": "hex",                       "emoji": "🔷", "name": "Hexagon | $500 Ticket",
+     "benefits": ["Event Access", "Fast Track Registration", "VIP Party", "First Row Seating", "Hexagon Events", "Speaker Lounge"]},
+    {"promo": "hexcomped",                 "emoji": "🔷", "name": "Hexagon | Comped Ticket",
+     "benefits": ["Event Access", "Fast Track Registration", "VIP Party", "First Row Seating", "Hexagon Events", "Speaker Lounge"]},
+    {"promo": "friendsofvishen",           "emoji": "💜", "name": "Friends of Vishen | $500 Ticket",
+     "benefits": ["Event Access", "Fast Track Registration", "VIP Party", "First Row Seating", "Hexagon Events", "Speaker Lounge"]},
+    {"promo": "friendsofvishencomped",     "emoji": "💜", "name": "Friends of Vishen | Comped Ticket",
+     "benefits": ["Event Access", "Fast Track Registration", "VIP Party", "First Row Seating", "Hexagon Events", "Speaker Lounge"]},
+    {"promo": "specialguest",              "emoji": "⭐", "name": "VIP Guest | $500 Ticket",
+     "benefits": ["Event Access", "Fast Track Registration", "VIP Party"]},
+    {"promo": "specialguestcomped",        "emoji": "⭐", "name": "VIP Guest | Comped Ticket",
+     "benefits": ["Event Access", "Fast Track Registration", "VIP Party"]},
+    {"promo": "vipguest",                  "emoji": "⭐", "name": "VIP Guest",
+     "benefits": ["Event Access", "Fast Track Registration", "VIP Party"]},
+    {"promo": "vipmedia",                  "emoji": "📰", "name": "VIP Media",
+     "benefits": ["Event Access", "Fast Track Registration", "VIP Party"]},
+]
+# Benefit → tag colour class
+BENEFIT_TIER = {
+    "Event Access":              "basic",
+    "Fast Track Registration":   "basic",
+    "VIP Party":                 "mid",
+    "First Row Seating":         "premium",
+    "Hexagon Events":            "premium",
+    "Speaker Lounge":            "premium",
+    "Speaker Dinner":            "premium",
+}
+
 # ── Main compute ─────────────────────────────────────────────────────────────
 def compute(regs):
     now   = datetime.now(tz=timezone.utc)
@@ -350,9 +382,31 @@ def compute(regs):
 
     crew_list  = promo_list("MyCrewPass")
     vol_list   = promo_list(["Volunteer2Weeks", "Volunteer1Week"])
-    hex_list   = promo_list("hexagon")
 
-    return hero, kids, teens, vip, fc, reg, threeday, cap, crew_list, vol_list, hex_list, refunds_by_tier
+    # ── Special Guests: 8 categories identified strictly by promo code ──
+    sg_promos = {c["promo"].lower(): c["promo"] for c in SPECIAL_GUESTS_CATEGORIES}
+    sg_data = {c["promo"]: [] for c in SPECIAL_GUESTS_CATEGORIES}
+    for r in valid:
+        p = (r.get("promoCode") or "").strip().lower()
+        if p not in sg_promos:
+            continue
+        canonical = sg_promos[p]
+        props = r.get("properties") or {}
+        email = props.get("email", "")
+        first = (props.get("firstName") or "").strip()
+        last  = (props.get("lastName")  or "").strip()
+        name = f"{first} {last}".strip()
+        week = get_week(r)
+        is_mv = "@mindvalley" in email.lower()
+        sg_data[canonical].append({
+            "name": name, "email": email,
+            "week": week if week else "Unassigned",
+            "weeks_full": get_week_full(r) or "Unassigned",
+            "is_mv": is_mv,
+            "ticket": r.get("ticketName", ""),
+        })
+
+    return hero, kids, teens, vip, fc, reg, threeday, cap, crew_list, vol_list, sg_data, refunds_by_tier
 
 # ── Year-over-year time series ───────────────────────────────────────────────
 def compute_yoy(regs_2026, regs_2025=None):
@@ -1367,6 +1421,109 @@ tr:hover td{{background:rgba(255,255,255,.03)}}
 </body>
 </html>"""
 
+def render_special_guests_page(sg_data):
+    """Standalone Special Guests page. Eight sub-categories identified
+    strictly by promo code. Each gets a mini-card with count + small
+    coloured tags listing the benefits, then a single table with every
+    attendee + their category + ticket + when."""
+    now_str = datetime.now(tz=timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
+
+    total = sum(len(v) for v in sg_data.values())
+
+    # Mini cards per category
+    cards_html = ""
+    for cat in SPECIAL_GUESTS_CATEGORIES:
+        count = len(sg_data.get(cat["promo"], []))
+        tags = "".join(
+            f'<span class="sg-benefit b-{BENEFIT_TIER.get(b,"basic")}">{b}</span>'
+            for b in cat["benefits"]
+        )
+        cards_html += f"""
+  <div class="sg-card">
+    <div class="sg-emoji">{cat['emoji']}</div>
+    <div class="sg-name">{cat['name']}</div>
+    <div class="sg-count">{count}</div>
+    <div class="sg-promo">promo: <code>{cat['promo']}</code></div>
+    <div class="sg-benefits">{tags}</div>
+  </div>"""
+
+    # Master table with all guests across categories
+    promo_to_name = {c["promo"]: c["name"] for c in SPECIAL_GUESTS_CATEGORIES}
+    rows = []
+    for cat in SPECIAL_GUESTS_CATEGORIES:
+        for p in sg_data.get(cat["promo"], []):
+            rows.append((cat["name"], p))
+    if rows:
+        rows_html = ""
+        for cat_name, p in rows:
+            rows_html += f"<tr><td>{p['name']}</td><td class='sg-tcat'>{cat_name}</td><td>{p['ticket']}</td><td>{p['weeks_full']}</td></tr>"
+        table_html = f"""<table class="sg-table">
+<thead><tr><th>Name</th><th>Category</th><th>Ticket Type</th><th>When</th></tr></thead>
+<tbody>{rows_html}</tbody>
+</table>"""
+    else:
+        table_html = '<div class="sg-empty">No Special Guests registered yet</div>'
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Special Guests — MVU 2026</title>
+<style>
+*,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
+:root{{--bg:#0b0a1a;--card:#14122a;--card-border:#2a2650;--gold:#d4a843;--purple:#7c3aed;--purple-light:#a78bfa;--text:#e8e4f0;--text-dim:#9a93b0;--green:#34d399}}
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:32px 20px}}
+.container{{max-width:1100px;margin:0 auto}}
+header{{text-align:center;margin-bottom:28px}}
+h1{{font-size:1.9rem;font-weight:800;background:linear-gradient(135deg,var(--gold),var(--purple-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.02em}}
+header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
+.timestamp{{display:inline-block;margin-top:10px;padding:4px 14px;border-radius:20px;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);font-size:.8rem;color:var(--purple-light)}}
+.headline{{display:flex;justify-content:center;margin-bottom:24px}}
+.headline-card{{background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:14px 26px;text-align:center;min-width:240px}}
+.headline-val{{font-size:1.8rem;font-weight:800;color:var(--green);line-height:1.1}}
+.headline-label{{font-size:.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-top:4px}}
+.sg-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:28px}}
+.sg-card{{background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:18px 16px;position:relative}}
+.sg-card::before{{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--purple-light),var(--gold));border-radius:14px 14px 0 0}}
+.sg-emoji{{font-size:1.4rem;margin-bottom:4px}}
+.sg-name{{font-size:.82rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;font-weight:600}}
+.sg-count{{font-size:2rem;font-weight:800;color:var(--gold);line-height:1;margin:4px 0 2px}}
+.sg-promo{{font-size:.68rem;color:var(--text-dim);margin-bottom:10px}}
+.sg-promo code{{background:rgba(255,255,255,.05);padding:1px 6px;border-radius:4px;color:var(--purple-light);font-family:ui-monospace,monospace;font-size:.72rem}}
+.sg-benefits{{display:flex;flex-wrap:wrap;gap:4px}}
+.sg-benefit{{font-size:.65rem;font-weight:600;padding:3px 8px;border-radius:10px;white-space:nowrap;letter-spacing:.02em}}
+.sg-benefit.b-basic{{background:rgba(212,168,67,.15);color:#e0bc62;border:1px solid rgba(212,168,67,.3)}}
+.sg-benefit.b-mid{{background:rgba(96,165,250,.15);color:#7dadeb;border:1px solid rgba(96,165,250,.3)}}
+.sg-benefit.b-premium{{background:rgba(236,72,153,.15);color:#f069b6;border:1px solid rgba(236,72,153,.3)}}
+.sg-table{{width:100%;border-collapse:collapse;font-size:.88rem;background:var(--card);border:1px solid var(--card-border);border-radius:14px;overflow:hidden}}
+.sg-table th{{text-align:left;padding:11px 14px;color:var(--text-dim);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02);font-weight:600}}
+.sg-table td{{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04)}}
+.sg-table tbody tr:last-child td{{border-bottom:none}}
+.sg-table tbody tr:hover td{{background:rgba(255,255,255,.02)}}
+.sg-table td.sg-tcat{{color:var(--purple-light);font-size:.82rem;font-weight:500}}
+.sg-empty{{text-align:center;padding:32px;color:var(--text-dim);font-size:.9rem;background:var(--card);border-radius:14px;border:1px solid var(--card-border)}}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <h1>Special Guests</h1>
+  <p>Mindvalley U 2026 — Tallinn, Estonia</p>
+  <div class="timestamp">Data snapshot: {now_str}</div>
+</header>
+<div class="headline">
+  <div class="headline-card">
+    <div class="headline-val">{total}</div>
+    <div class="headline-label">Total Special Guests registered</div>
+  </div>
+</div>
+<div class="sg-grid">{cards_html}
+</div>
+{table_html}
+</div>
+</body>
+</html>"""
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("🔐 Authenticating...")
@@ -1385,11 +1542,11 @@ if __name__ == "__main__":
         regs_2025 = None
 
     print("🧮 Computing metrics...")
-    hero, kids, teens, vip, fc, reg, threeday, cap, crew_list, vol_list, hex_list, refunds_by_tier = compute(regs)
+    hero, kids, teens, vip, fc, reg, threeday, cap, crew_list, vol_list, sg_data, refunds_by_tier = compute(regs)
     yoy = compute_yoy(regs, regs_2025)
 
     print("✍️  Writing event-dashboards/mvu-2026/index.html...")
-    html = render_html(hero, kids, teens, vip, fc, reg, threeday, cap, crew_list, vol_list, hex_list, yoy, refunds_by_tier)
+    html = render_html(hero, kids, teens, vip, fc, reg, threeday, cap, crew_list, vol_list, sg_data, yoy, refunds_by_tier)
     import os
     os.makedirs("event-dashboards/mvu-2026", exist_ok=True)
     with open("event-dashboards/mvu-2026/index.html", "w", encoding="utf-8") as f:
@@ -1399,13 +1556,20 @@ if __name__ == "__main__":
     promo_pages = [
         ("Crew - Mindvalley Team", "🎫", "mycrewpass", crew_list, True),
         ("Volunteers", "🙋", "volunteers", vol_list, False),
-        ("Hexagon", "🌟", "hexagon", hex_list, False),
     ]
     for name, emoji, slug, plist, flag_non_mv in promo_pages:
         path = f"event-dashboards/mvu-2026/{slug}.html"
         with open(path, "w", encoding="utf-8") as f:
             f.write(render_promo_page(emoji, name, plist, flag_non_mv))
         print(f"   {name}: {len(plist)} registrations -> {path}")
+
+    # Special Guests page (replaces the old hexagon.html). 8 sub-categories
+    # identified by promo code, each with their benefits as small tags.
+    sg_path = "event-dashboards/mvu-2026/special-guests.html"
+    with open(sg_path, "w", encoding="utf-8") as f:
+        f.write(render_special_guests_page(sg_data))
+    sg_total = sum(len(v) for v in sg_data.values())
+    print(f"   Special Guests: {sg_total} registrations -> {sg_path}")
 
     # Generate the standalone refunds analysis page (not linked from main dashboard)
     refunds_analysis_path = "event-dashboards/mvu-2026/refunds-analysis.html"

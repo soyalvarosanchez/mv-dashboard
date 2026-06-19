@@ -187,26 +187,54 @@ def classify_tier(ticket_name):
         return "Early Bird"
     return "Standard"
 
-# ── Special Guests categories: identified strictly by promo code ─────────────
-# Each entry: promo code, display name, icon, and the benefits granted (used
-# to render small colour-coded tags on the standalone page).
-SPECIAL_GUESTS_CATEGORIES = [
-    {"promo": "hex",                       "emoji": "🔷", "name": "Hexagon | $500 Ticket",
-     "benefits": ["Event Access", "Fast Track Registration", "VIP Party", "First Row Seating", "Hexagon Events", "Speaker Lounge"]},
-    {"promo": "hexcomped",                 "emoji": "🔷", "name": "Hexagon | Comped Ticket",
-     "benefits": ["Event Access", "Fast Track Registration", "VIP Party", "First Row Seating", "Hexagon Events", "Speaker Lounge"]},
-    {"promo": "friendsofvishen",           "emoji": "💜", "name": "Friends of Vishen | $500 Ticket",
-     "benefits": ["Event Access", "Fast Track Registration", "VIP Party", "First Row Seating", "Hexagon Events", "Speaker Lounge"]},
-    {"promo": "friendsofvishencomped",     "emoji": "💜", "name": "Friends of Vishen | Comped Ticket",
-     "benefits": ["Event Access", "Fast Track Registration", "VIP Party", "First Row Seating", "Hexagon Events", "Speaker Lounge"]},
-    {"promo": "specialguest",              "emoji": "⭐", "name": "VIP Guest | $500 Ticket",
-     "benefits": ["Event Access", "Fast Track Registration", "VIP Party"]},
-    {"promo": "specialguestcomped",        "emoji": "⭐", "name": "VIP Guest | Comped Ticket",
-     "benefits": ["Event Access", "Fast Track Registration", "VIP Party"]},
-    {"promo": "vipguest",                  "emoji": "⭐", "name": "VIP Guest",
-     "benefits": ["Event Access", "Fast Track Registration", "VIP Party"]},
-    {"promo": "vipmedia",                  "emoji": "📰", "name": "VIP Media",
-     "benefits": ["Event Access", "Fast Track Registration", "VIP Party"]},
+# ── Special Guests groups: merged categories ─────────────────────────────────
+# Each group merges its paid ($500) and comped variants under one card with one
+# shared benefits list. The page renders one card per group; inside each card
+# the attendee table carries a 'Category' column with the original sub-type
+# label (e.g. "Hexagon | $500 Ticket" vs "Hexagon | Comped Ticket").
+SPECIAL_GUESTS_GROUPS = [
+    {
+        "id": "hexagon",
+        "name": "Hexagon",
+        "emoji": "🔷",
+        "promos": [
+            ("hex",       "Hexagon | $500 Ticket"),
+            ("hexcomped", "Hexagon | Comped Ticket"),
+        ],
+        "benefits": ["Event Access", "Fast Track Registration", "VIP Party",
+                     "First Row Seating", "Hexagon Events", "Speaker Lounge"],
+    },
+    {
+        "id": "friends",
+        "name": "Friends of Vishen",
+        "emoji": "💜",
+        "promos": [
+            ("friendsofvishen",       "Friends of Vishen | $500 Ticket"),
+            ("friendsofvishencomped", "Friends of Vishen | Comped Ticket"),
+        ],
+        "benefits": ["Event Access", "Fast Track Registration", "VIP Party",
+                     "First Row Seating", "Hexagon Events", "Speaker Lounge"],
+    },
+    {
+        "id": "vipguest",
+        "name": "VIP Guest",
+        "emoji": "⭐",
+        "promos": [
+            ("specialguest",       "VIP Guest | $500 Ticket"),
+            ("specialguestcomped", "VIP Guest | Comped Ticket"),
+            ("vipguest",           "VIP Guest"),
+        ],
+        "benefits": ["Event Access", "Fast Track Registration", "VIP Party"],
+    },
+    {
+        "id": "vipmedia",
+        "name": "VIP Media",
+        "emoji": "📰",
+        "promos": [
+            ("vipmedia", "VIP Media"),
+        ],
+        "benefits": ["Event Access", "Fast Track Registration", "VIP Party"],
+    },
 ]
 # Benefit → tag colour class
 BENEFIT_TIER = {
@@ -383,9 +411,12 @@ def compute(regs):
     crew_list  = promo_list("MyCrewPass")
     vol_list   = promo_list(["Volunteer2Weeks", "Volunteer1Week"])
 
-    # ── Special Guests: 8 categories identified strictly by promo code ──
-    sg_promos = {c["promo"].lower(): c["promo"] for c in SPECIAL_GUESTS_CATEGORIES}
-    sg_data = {c["promo"]: [] for c in SPECIAL_GUESTS_CATEGORIES}
+    # ── Special Guests: collect by promo code; render-time merges into groups ──
+    sg_promos = {}
+    for grp in SPECIAL_GUESTS_GROUPS:
+        for (p, _label) in grp["promos"]:
+            sg_promos[p.lower()] = p
+    sg_data = {p: [] for p in sg_promos.values()}
     for r in valid:
         p = (r.get("promoCode") or "").strip().lower()
         if p not in sg_promos:
@@ -1422,47 +1453,50 @@ tr:hover td{{background:rgba(255,255,255,.03)}}
 </html>"""
 
 def render_special_guests_page(sg_data):
-    """Standalone Special Guests page. Eight sub-categories identified
-    strictly by promo code. Each gets a mini-card with count + small
-    coloured tags listing the benefits, then a single table with every
-    attendee + their category + ticket + when."""
+    """Special Guests page. One card per merged group (Hexagon / Friends of
+    Vishen / VIP Guest / VIP Media), with that group's benefits as tags and
+    its attendees listed in an embedded table inside the card. Paid and
+    comped variants share the card; the table's 'Category' column carries
+    the sub-type label."""
     now_str = datetime.now(tz=timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
 
-    total = sum(len(v) for v in sg_data.values())
-
-    # Mini cards per category
     cards_html = ""
-    for cat in SPECIAL_GUESTS_CATEGORIES:
-        count = len(sg_data.get(cat["promo"], []))
+    for grp in SPECIAL_GUESTS_GROUPS:
+        # Collect every attendee from this group, tagging with sub-category label
+        attendees = []
+        for (promo, sub_label) in grp["promos"]:
+            for p in sg_data.get(promo, []):
+                attendees.append({"sub": sub_label, **p})
+
+        # Benefit tags
         tags = "".join(
             f'<span class="sg-benefit b-{BENEFIT_TIER.get(b,"basic")}">{b}</span>'
-            for b in cat["benefits"]
+            for b in grp["benefits"]
         )
-        cards_html += f"""
-  <div class="sg-card">
-    <div class="sg-emoji">{cat['emoji']}</div>
-    <div class="sg-name">{cat['name']}</div>
-    <div class="sg-count">{count}</div>
-    <div class="sg-promo">promo: <code>{cat['promo']}</code></div>
-    <div class="sg-benefits">{tags}</div>
-  </div>"""
 
-    # Master table with all guests across categories
-    promo_to_name = {c["promo"]: c["name"] for c in SPECIAL_GUESTS_CATEGORIES}
-    rows = []
-    for cat in SPECIAL_GUESTS_CATEGORIES:
-        for p in sg_data.get(cat["promo"], []):
-            rows.append((cat["name"], p))
-    if rows:
-        rows_html = ""
-        for cat_name, p in rows:
-            rows_html += f"<tr><td>{p['name']}</td><td class='sg-tcat'>{cat_name}</td><td>{p['ticket']}</td><td>{p['weeks_full']}</td></tr>"
-        table_html = f"""<table class="sg-table">
+        # Embedded table (or empty state) for this group's attendees
+        if attendees:
+            rows_html = "".join(
+                f"<tr><td>{a['name']}</td><td class='sg-tsub'>{a['sub']}</td><td>{a['ticket']}</td><td>{a['weeks_full']}</td></tr>"
+                for a in attendees
+            )
+            inner = f"""<table class="sg-table">
 <thead><tr><th>Name</th><th>Category</th><th>Ticket Type</th><th>When</th></tr></thead>
 <tbody>{rows_html}</tbody>
 </table>"""
-    else:
-        table_html = '<div class="sg-empty">No Special Guests registered yet</div>'
+        else:
+            inner = '<div class="sg-empty-inline">No registrations yet</div>'
+
+        cards_html += f"""
+<div class="sg-card">
+  <div class="sg-head">
+    <span class="sg-emoji">{grp['emoji']}</span>
+    <h2 class="sg-name">{grp['name']}</h2>
+    <span class="sg-count">{len(attendees)}</span>
+  </div>
+  <div class="sg-benefits">{tags}</div>
+  {inner}
+</div>"""
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -1474,34 +1508,28 @@ def render_special_guests_page(sg_data):
 :root{{--bg:#0b0a1a;--card:#14122a;--card-border:#2a2650;--gold:#d4a843;--purple:#7c3aed;--purple-light:#a78bfa;--text:#e8e4f0;--text-dim:#9a93b0;--green:#34d399}}
 body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:32px 20px}}
 .container{{max-width:1100px;margin:0 auto}}
-header{{text-align:center;margin-bottom:28px}}
+header{{text-align:center;margin-bottom:30px}}
 h1{{font-size:1.9rem;font-weight:800;background:linear-gradient(135deg,var(--gold),var(--purple-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.02em}}
 header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
 .timestamp{{display:inline-block;margin-top:10px;padding:4px 14px;border-radius:20px;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);font-size:.8rem;color:var(--purple-light)}}
-.headline{{display:flex;justify-content:center;margin-bottom:24px}}
-.headline-card{{background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:14px 26px;text-align:center;min-width:240px}}
-.headline-val{{font-size:1.8rem;font-weight:800;color:var(--green);line-height:1.1}}
-.headline-label{{font-size:.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-top:4px}}
-.sg-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:28px}}
-.sg-card{{background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:18px 16px;position:relative}}
-.sg-card::before{{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--purple-light),var(--gold));border-radius:14px 14px 0 0}}
-.sg-emoji{{font-size:1.4rem;margin-bottom:4px}}
-.sg-name{{font-size:.82rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;font-weight:600}}
-.sg-count{{font-size:2rem;font-weight:800;color:var(--gold);line-height:1;margin:4px 0 2px}}
-.sg-promo{{font-size:.68rem;color:var(--text-dim);margin-bottom:10px}}
-.sg-promo code{{background:rgba(255,255,255,.05);padding:1px 6px;border-radius:4px;color:var(--purple-light);font-family:ui-monospace,monospace;font-size:.72rem}}
-.sg-benefits{{display:flex;flex-wrap:wrap;gap:4px}}
-.sg-benefit{{font-size:.65rem;font-weight:600;padding:3px 8px;border-radius:10px;white-space:nowrap;letter-spacing:.02em}}
+.sg-card{{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:22px 24px;margin-bottom:20px;position:relative;overflow:hidden}}
+.sg-card::before{{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--purple-light),var(--gold));border-radius:16px 16px 0 0}}
+.sg-head{{display:flex;align-items:center;gap:12px;margin-bottom:14px}}
+.sg-emoji{{font-size:1.7rem;line-height:1}}
+.sg-name{{font-size:1.35rem;font-weight:800;color:var(--text);flex:1;letter-spacing:-.01em}}
+.sg-count{{font-size:1.9rem;font-weight:800;color:var(--gold);line-height:1;font-variant-numeric:tabular-nums}}
+.sg-benefits{{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px}}
+.sg-benefit{{font-size:.68rem;font-weight:600;padding:4px 10px;border-radius:11px;white-space:nowrap;letter-spacing:.02em}}
 .sg-benefit.b-basic{{background:rgba(212,168,67,.15);color:#e0bc62;border:1px solid rgba(212,168,67,.3)}}
 .sg-benefit.b-mid{{background:rgba(96,165,250,.15);color:#7dadeb;border:1px solid rgba(96,165,250,.3)}}
 .sg-benefit.b-premium{{background:rgba(236,72,153,.15);color:#f069b6;border:1px solid rgba(236,72,153,.3)}}
-.sg-table{{width:100%;border-collapse:collapse;font-size:.88rem;background:var(--card);border:1px solid var(--card-border);border-radius:14px;overflow:hidden}}
-.sg-table th{{text-align:left;padding:11px 14px;color:var(--text-dim);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02);font-weight:600}}
-.sg-table td{{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04)}}
+.sg-table{{width:100%;border-collapse:collapse;font-size:.88rem}}
+.sg-table th{{text-align:left;padding:9px 12px;color:var(--text-dim);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.015);font-weight:600}}
+.sg-table td{{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.03)}}
 .sg-table tbody tr:last-child td{{border-bottom:none}}
 .sg-table tbody tr:hover td{{background:rgba(255,255,255,.02)}}
-.sg-table td.sg-tcat{{color:var(--purple-light);font-size:.82rem;font-weight:500}}
-.sg-empty{{text-align:center;padding:32px;color:var(--text-dim);font-size:.9rem;background:var(--card);border-radius:14px;border:1px solid var(--card-border)}}
+.sg-table td.sg-tsub{{color:var(--purple-light);font-size:.82rem;font-weight:500}}
+.sg-empty-inline{{text-align:center;padding:18px;color:var(--text-dim);font-size:.85rem;font-style:italic;border-top:1px solid rgba(255,255,255,.06)}}
 </style>
 </head>
 <body>
@@ -1511,15 +1539,7 @@ header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
   <p>Mindvalley U 2026 — Tallinn, Estonia</p>
   <div class="timestamp">Data snapshot: {now_str}</div>
 </header>
-<div class="headline">
-  <div class="headline-card">
-    <div class="headline-val">{total}</div>
-    <div class="headline-label">Total Special Guests registered</div>
-  </div>
-</div>
-<div class="sg-grid">{cards_html}
-</div>
-{table_html}
+{cards_html}
 </div>
 </body>
 </html>"""

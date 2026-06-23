@@ -1003,6 +1003,11 @@ def render_ticket_types_page(regs):
         if promo in CREW_CODES:
             return "Black", f"{name} (Crew)"
         n = name.lower()
+        if "hexagon" in n:                   return "Blue", name
+        if "friends of vishen" in n:         return "Blue", name
+        if "speaker" in n:                   return "Blue", name
+        if "special guest" in n:             return "Brown", name
+        if "crew access" in n:               return "Black", name
         if "vip" in n:                       return "Brown", name
         if "first class" in n:               return "Silver", name
         if "teen" in n:                      return "Purple", name
@@ -1041,12 +1046,12 @@ def render_ticket_types_page(regs):
     # Units ordered from supplier per colour. Drives the capacity % bar in
     # each section header. None for Pending (no capacity defined).
     BAND_CAPACITY = {
-        "Purple":       1585,
+        "Purple":       1500,
         "Brown":         500,
         "Silver":         25,
         "Blue":          200,
         "Black":          70,
-        "Elastic band":   85,
+        "Elastic band":  140,
     }
 
     sections_html = ""
@@ -1156,7 +1161,7 @@ header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
 </div>
 {sections_html}
 
-<div class="footnote">Only registrations with validity = valid · Volunteers and Crew classified by their promo code · ticket type labels kept verbatim (Bizzabo-side variants stay as separate rows)</div>
+<div class="footnote">Only registrations with validity = valid · Volunteers &amp; Crew classified by promo code · Hexagon, Friends of Vishen &amp; Speaker → Blue · Special Guests → Brown · Crew Access → Black · ticket type labels kept verbatim (Bizzabo-side variants stay as separate rows)</div>
 </div>
 </body>
 </html>"""

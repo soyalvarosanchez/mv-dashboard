@@ -207,14 +207,15 @@ def classify_tier(ticket_name):
 
 # ── Special Guests groups: merged categories ─────────────────────────────────
 # Each group merges its paid ($500) and comped variants under one card with one
-# shared benefits list. The page renders one card per group; inside each card
-# the attendee table carries a 'Category' column with the original sub-type
-# label (e.g. "Hexagon | $500 Ticket" vs "Hexagon | Comped Ticket").
+# shared benefits list. Matching is hybrid: promo code first (precise; carries
+# a canonical sub-label), with a fallback to ticket-type substring so manual
+# Bizzabo activations without promo are still picked up.
 SPECIAL_GUESTS_GROUPS = [
     {
         "id": "hexagon",
         "name": "Hexagon",
         "emoji": "🔷",
+        "ticket_keys": ["hexagon"],
         "promos": [
             ("hex",       "Hexagon | $500 Ticket"),
             ("hexcomped", "Hexagon | Comped Ticket"),
@@ -226,6 +227,7 @@ SPECIAL_GUESTS_GROUPS = [
         "id": "friends",
         "name": "Friends of Vishen",
         "emoji": "💜",
+        "ticket_keys": ["friends of vishen"],
         "promos": [
             ("friendsofvishen",       "Friends of Vishen | $500 Ticket"),
             ("friendsofvishencomped", "Friends of Vishen | Comped Ticket"),
@@ -237,6 +239,7 @@ SPECIAL_GUESTS_GROUPS = [
         "id": "vipguest",
         "name": "VIP Guest",
         "emoji": "⭐",
+        "ticket_keys": ["vip guest", "special guest"],
         "promos": [
             ("specialguest",       "VIP Guest | $500 Ticket"),
             ("specialguestcomped", "VIP Guest | Comped Ticket"),
@@ -248,6 +251,7 @@ SPECIAL_GUESTS_GROUPS = [
         "id": "vipmedia",
         "name": "VIP Media",
         "emoji": "📰",
+        "ticket_keys": ["vip media"],
         "promos": [
             ("vipmedia", "VIP Media"),
         ],
@@ -429,28 +433,40 @@ def compute(regs):
     crew_list  = promo_list("MyCrewPass")
     vol_list   = promo_list(["Volunteer2Weeks", "Volunteer1Week"])
 
-    # ── Special Guests: collect by promo code; render-time merges into groups ──
-    sg_promos = {}
+    # ── Special Guests: hybrid match (promo code → fallback to ticket type) ──
+    # sg_data is keyed by group id; each attendee carries its sub-category label.
+    promo_to_group = {}      # lower_promo -> (group_id, canonical_sub_label)
     for grp in SPECIAL_GUESTS_GROUPS:
-        for (p, _label) in grp["promos"]:
-            sg_promos[p.lower()] = p
-    sg_data = {p: [] for p in sg_promos.values()}
+        for (p, label) in grp["promos"]:
+            promo_to_group[p.lower()] = (grp["id"], label)
+    sg_data = {grp["id"]: [] for grp in SPECIAL_GUESTS_GROUPS}
     for r in valid:
-        p = (r.get("promoCode") or "").strip().lower()
-        if p not in sg_promos:
-            continue
-        canonical = sg_promos[p]
+        p  = (r.get("promoCode")  or "").strip().lower()
+        tt = (r.get("ticketName") or "").strip()
+        tt_lower = tt.lower()
+        # 1) promo code (precise)
+        if p in promo_to_group:
+            group_id, sub_label = promo_to_group[p]
+        else:
+            # 2) ticket type substring (manual Bizzabo activations w/o promo)
+            group_id, sub_label = None, None
+            for grp in SPECIAL_GUESTS_GROUPS:
+                if any(k in tt_lower for k in grp.get("ticket_keys", [])):
+                    group_id = grp["id"]
+                    sub_label = tt or "(no ticket type)"
+                    break
+            if group_id is None:
+                continue
         props = r.get("properties") or {}
         email = props.get("email", "")
         name = get_attendee_name(r)
         week = get_week(r)
         is_mv = "@mindvalley" in email.lower()
-        sg_data[canonical].append({
-            "name": name, "email": email,
+        sg_data[group_id].append({
+            "name": name, "email": email, "sub": sub_label,
             "week": week if week else "Unassigned",
             "weeks_full": get_week_full(r) or "Unassigned",
-            "is_mv": is_mv,
-            "ticket": r.get("ticketName", ""),
+            "is_mv": is_mv, "ticket": tt,
         })
 
     return hero, kids, teens, vip, fc, reg, threeday, cap, crew_list, vol_list, sg_data, refunds_by_tier
@@ -1483,11 +1499,10 @@ def render_special_guests_page(sg_data):
 
     cards_html = ""
     for grp in SPECIAL_GUESTS_GROUPS:
-        # Collect every attendee from this group, tagging with sub-category label
-        attendees = []
-        for (promo, sub_label) in grp["promos"]:
-            for p in sg_data.get(promo, []):
-                attendees.append({"sub": sub_label, **p})
+        # Attendees come pre-tagged with `sub` (the sub-category label) — either
+        # the canonical label from the matching promo, or the raw ticket type
+        # for manual Bizzabo activations that had no promo code.
+        attendees = sg_data.get(grp["id"], [])
 
         # Benefit tags
         tags = "".join(

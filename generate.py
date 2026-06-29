@@ -1589,6 +1589,125 @@ if __name__ == "__main__":
     regs = fetch_all(token, EVENT_ID)
     print(f"   Total records: {len(regs)}")
 
+    # ── TEMPORARY DIAGNOSTIC: Tribe Speakers — are they registered? ──
+    import unicodedata as _ud
+    TRIBE_SPEAKERS = [
+        ("Toomas Laigu", "toomaslaigu@gmail.com"),
+        ("Geir Bernhardsen", "geirbernhardsen@mail.com"),
+        ("Marisa Murray", "murray.marisa@gmail.com"),
+        ("Karol Pittner", "moderatornacestach@gmail.com"),
+        ("Lucia Franchi", "luciavittoriafranchi@gmail.com"),
+        ("Germán Javier Gholami Torres-Pardo", "germangholami@gmail.com"),
+        ("Paul Gotel", "paulgotelweb@gmail.com"),
+        ("Kevin van Hagen", "vanhagenpt@gmail.com"),
+        ("Marie-Laure WILL", "transformation@marielaurewill.com"),
+        ("Tista S Ghosh, MD, MPH", "tista.s.ghosh@gmail.com"),
+        ("Laura Quirke", "laura@lightconnectors.com"),
+        ("Lis Suppo", "lis@lissuppo.com"),
+        ("Tanja Sipilä", "tanja@tanjasipila.com"),
+        ("Louise Jones", "louisejones20@me.com"),
+        ("Nawres Chikhaoui", "chikhaouinawres6@gmail.com"),
+        ("Michal Bardavid", "michal.bardavid@gmail.com"),
+        ("Cloud Kohinoor", "cloudkohinoor@gmail.com"),
+        ("Shashi Solluna", "shashisolluna@gmail.com"),
+        ("Louise Evans", "louise@the5chairs.com"),
+        ("Olya Rostov", "hi@olyarostov.com"),
+        ("Erwin Benedict Sawit Valencia", "erwinbvalencia@gmail.com"),
+        ("Rola Diab", "rola@alorsolutions.com"),
+        ("Letizia Silvestri", "heal@altha.com"),
+        ("Rachel Slawson", "partnerships@saltyrachel.com"),
+        ("Marina Vorobyeva", "mvorobyeva84@gmail.com"),
+        ("Rui Vas", "rui.vas10x@gmail.com"),
+        ("Michelle Maree", "michelle@thenomadescape.com"),
+        ("Meagan Desart", "meagan0366@hotmail.com"),
+        ("Adaku Linda Mbagwu", "adaku@healedhero.com"),
+        ("Karms Fung", "karmsfung@gmail.com"),
+        ("Cédric Lignier", "nomadnumbers@gmail.com"),
+        ("Cecilie Stabell Eriksen", "contact@ceciliestabell.com"),
+        ("SHARRON LOWE", "sharron@loweassociates.com"),
+        ("Julia Titova", "info@juliatitova.com"),
+        ("Marcel Wijermars", "marcel@amsterdamfoundersclub.com"),
+        ("Mia Lovequest (Rosenzweig)", "mia@mialovequest.com"),
+        ("Francesca Facio Crespo", "franfacio@gmail.com"),
+        ("Bruce Muzik", "brucemuzik@gmail.com"),
+        ("Amy White", "amy@thewhiteeditorial.com"),
+        ("Kitty Heusschen", "kittyheusschen@gmail.com"),
+        ("Melanie Warner", "melanie@mydefiningmoments.com"),
+        ("Dr Nima Mahmoodi", "dr.nima.mahmoodi@gmail.com"),
+        ("Alexander Lange", "alex.lange.7@gmail.com"),
+        ("Gia Lulic", "gialulic@gmail.com"),
+        ("Maria Conceicao", "maria@mariacristinafoundation.org"),
+        ("Chiara Bransi", ""),
+        ("Safwaan Mohammed", ""),
+        ("Iris Wagner", ""),
+        ("Louie Blake", ""),
+        ("Simon Salter", ""),
+        ("Nora Cavani", ""),
+        ("Jimmy Naraine", ""),
+        ("Nick Mennell", ""),
+        ("Chiara King", ""),
+    ]
+    def _norm(s):
+        s = _ud.normalize('NFKD', s or '').encode('ASCII','ignore').decode()
+        return ''.join(c for c in s.lower() if c.isalnum() or c==' ').strip()
+    def _rec_emails(r):
+        out = []
+        for src in (r.get('properties') or {}, r.get('billingAddress') or {}):
+            e = (src.get('email') or '').strip().lower()
+            if e: out.append(e)
+        return out
+    def _rec_name(r):
+        props = r.get('properties') or {}
+        n = f"{(props.get('firstName') or '').strip()} {(props.get('lastName') or '').strip()}".strip()
+        if n: return n
+        bill = r.get('billingAddress') or {}
+        return f"{(bill.get('firstName') or '').strip()} {(bill.get('lastName') or '').strip()}".strip()
+
+    # Build lookup tables on all NON-refunded records (include comped — speakers may be comped)
+    _candidates = [r for r in regs if (r.get('paymentStatus') or '').lower() != 'refunded']
+    by_email = {}
+    by_name_norm = {}
+    for r in _candidates:
+        for e in _rec_emails(r):
+            by_email.setdefault(e, []).append(r)
+        n = _norm(_rec_name(r))
+        if n:
+            by_name_norm.setdefault(n, []).append(r)
+
+    print(f"\n🔎 [diag] Tribe Speakers vs registrations ({len(TRIBE_SPEAKERS)} speakers, {len(_candidates)} non-refunded records)")
+    matched, unmatched = 0, 0
+    for sp_name, sp_email in TRIBE_SPEAKERS:
+        sp_email_lc = sp_email.strip().lower()
+        sp_name_norm = _norm(sp_name)
+        match_recs = []
+        match_via = None
+        if sp_email_lc and sp_email_lc in by_email:
+            match_recs = by_email[sp_email_lc]; match_via = 'email'
+        else:
+            # Fallback: name normalization. Try exact normalized match first,
+            # then partial (all target tokens appear in registered name).
+            if sp_name_norm in by_name_norm:
+                match_recs = by_name_norm[sp_name_norm]; match_via = 'name (exact)'
+            else:
+                target_tokens = set(t for t in sp_name_norm.split() if len(t) > 2)
+                for n_norm, recs in by_name_norm.items():
+                    cand_tokens = set(n_norm.split())
+                    # require at least 2 token overlap (or all if fewer than 2 in target)
+                    needed = min(2, len(target_tokens))
+                    if needed > 0 and len(target_tokens & cand_tokens) >= needed:
+                        match_recs.extend(recs); match_via = 'name (partial)'
+        if match_recs:
+            matched += 1
+            for r in match_recs[:3]:
+                print(f"  ✓ {sp_name!r}  ({sp_email or '<no email>'})  via {match_via} → {_rec_name(r)!r} · {r.get('ticketName')!r} · {r.get('paymentStatus')}")
+            if len(match_recs) > 3:
+                print(f"     … +{len(match_recs)-3} more matches")
+        else:
+            unmatched += 1
+            print(f"  ✗ {sp_name!r}  ({sp_email or '<no email>'})  → NOT FOUND")
+    print(f"  Summary: {matched} matched · {unmatched} not found\n")
+    # ── END DIAGNOSTIC ──
+
     print(f"📥 Fetching MVU 2025 registrations (event {EVENT_ID_2025}) for YoY...")
     try:
         regs_2025 = fetch_all(token, EVENT_ID_2025)

@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Kids &amp; Teens — MVU 2026</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0b0a1a;--card:#14122a;--card-border:#2a2650;--gold:#d4a843;--purple:#7c3aed;--purple-light:#a78bfa;--text:#e8e4f0;--text-dim:#9a93b0;--green:#34d399;--red:#f87171;--orange:#fb923c}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:32px 20px}
+.container{max-width:1200px;margin:0 auto}
+header{text-align:center;margin-bottom:30px}
+h1{font-size:1.9rem;font-weight:800;background:linear-gradient(135deg,var(--gold),var(--purple-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.02em}
+header p{color:var(--text-dim);margin-top:6px;font-size:.9rem}
+.timestamp{display:inline-block;margin-top:10px;padding:4px 14px;border-radius:20px;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);font-size:.8rem;color:var(--purple-light)}
+
+/* hero KPI strip — mirrors the main dashboard */
+.hero-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:28px}
+.hero-card{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:22px;position:relative;overflow:hidden}
+.hero-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:16px 16px 0 0}
+.hero-card.valid::before{background:linear-gradient(90deg,var(--green),#059669)}
+.hero-card.paid::before{background:linear-gradient(90deg,var(--purple-light),var(--purple))}
+.hero-card.refund::before{background:linear-gradient(90deg,var(--red),#dc2626)}
+.hero-card.unassigned::before{background:linear-gradient(90deg,var(--orange),#ea580c)}
+.hero-icon{font-size:1.6rem;margin-bottom:6px}
+.hero-label{font-size:.8rem;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:.06em}
+.hero-value{font-size:2.4rem;font-weight:800;line-height:1.1;margin:4px 0}
+.hero-card.valid .hero-value{color:var(--green)}
+.hero-card.paid .hero-value{color:var(--purple-light)}
+.hero-card.refund .hero-value{color:var(--red)}
+.hero-card.unassigned .hero-value{color:var(--orange)}
+.hero-sub{display:flex;gap:16px;margin-top:8px;font-size:.78rem;color:var(--text-dim)}
+.hero-sub span{display:flex;align-items:center;gap:4px}
+.hero-sub .num{font-weight:700;color:var(--text)}
+
+.kt-section-label{font-size:1.1rem;font-weight:700;color:var(--gold);margin:8px 0 14px;text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:8px}
+.kt-section-label::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(212,168,67,.5),transparent)}
+
+/* capacity-risk cards (mirrors main dashboard) */
+.cap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:28px}
+.cap-card{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:22px;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s}
+.cap-card:hover{transform:translateY(-3px)}
+.cap-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:16px 16px 0 0}
+.cap-card.risk-green::before{background:linear-gradient(90deg,#34d399,#059669)}
+.cap-card.risk-yellow::before{background:linear-gradient(90deg,#fbbf24,#d97706)}
+.cap-card.risk-red::before{background:linear-gradient(90deg,#f87171,#dc2626)}
+.cap-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.cap-title{font-size:.9rem;font-weight:700;color:var(--text);letter-spacing:.03em}
+.cap-week-badge{font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.05em;text-transform:uppercase}
+.cap-card.risk-green .cap-week-badge{background:rgba(52,211,153,.15);color:#34d399;border:1px solid rgba(52,211,153,.3)}
+.cap-card.risk-yellow .cap-week-badge{background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3)}
+.cap-card.risk-red .cap-week-badge{background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3)}
+.traffic-light{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.tl-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;box-shadow:0 0 8px currentColor}
+.risk-green .tl-dot{background:#34d399;color:#34d399}
+.risk-yellow .tl-dot{background:#fbbf24;color:#fbbf24;animation:pulse-yellow 2s ease-in-out infinite}
+.risk-red .tl-dot{background:#f87171;color:#f87171;animation:pulse-red 1.4s ease-in-out infinite}
+@keyframes pulse-yellow{0%,100%{box-shadow:0 0 6px #fbbf24}50%{box-shadow:0 0 16px #fbbf24}}
+@keyframes pulse-red{0%,100%{box-shadow:0 0 6px #f87171}50%{box-shadow:0 0 20px #f87171}}
+.tl-status{font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.risk-green .tl-status{color:#34d399}
+.risk-yellow .tl-status{color:#fbbf24}
+.risk-red .tl-status{color:#f87171}
+.tl-sub{font-size:.75rem;color:var(--text-dim);margin-left:auto}
+.cap-bar-wrap{margin-bottom:14px}
+.cap-bar-labels{display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-dim);margin-bottom:5px}
+.cap-bar-track{width:100%;height:12px;border-radius:6px;background:rgba(255,255,255,.06);position:relative;overflow:visible}
+.cap-bar-confirmed{height:100%;border-radius:6px 0 0 6px;position:absolute;left:0;top:0}
+.cap-bar-unassigned{height:100%;position:absolute;top:0;background-image:repeating-linear-gradient(45deg,transparent,transparent 3px,rgba(0,0,0,.25) 3px,rgba(0,0,0,.25) 6px)}
+.risk-green .cap-bar-confirmed{background:linear-gradient(90deg,#34d399,#059669)}
+.risk-green .cap-bar-unassigned{background-color:rgba(52,211,153,.35)}
+.risk-yellow .cap-bar-confirmed{background:linear-gradient(90deg,#fbbf24,#d97706)}
+.risk-yellow .cap-bar-unassigned{background-color:rgba(251,191,36,.35)}
+.risk-red .cap-bar-confirmed{background:linear-gradient(90deg,#f87171,#dc2626)}
+.risk-red .cap-bar-unassigned{background-color:rgba(248,113,113,.35)}
+.cap-bar-marker{position:absolute;top:-4px;height:20px;width:2px;background:var(--gold);border-radius:2px;z-index:2}
+.cap-bar-marker::after{content:'70';position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:.65rem;color:var(--gold);font-weight:700;white-space:nowrap}
+.cap-numbers{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center}
+.cap-num-item{padding:6px 2px;border-radius:8px;background:rgba(255,255,255,.03)}
+.cap-num-val{font-size:1.2rem;font-weight:800;color:var(--text)}
+.cap-num-label{font-size:.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin-top:1px}
+.cap-num-item.worst .cap-num-val{font-size:1.35rem}
+.risk-green .cap-num-item.worst .cap-num-val{color:#34d399}
+.risk-yellow .cap-num-item.worst .cap-num-val{color:#fbbf24}
+.risk-red .cap-num-item.worst .cap-num-val{color:#f87171}
+.cap-capacity-note{text-align:center;font-size:.72rem;color:var(--text-dim);margin-top:10px}
+.cap-capacity-note strong{color:var(--gold)}
+
+.kt-week-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:28px}
+@media (max-width:760px){.kt-week-grid{grid-template-columns:1fr}}
+
+.kt-card{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:20px 22px;position:relative;overflow:hidden}
+.kt-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--purple-light),var(--gold));border-radius:16px 16px 0 0}
+.kt-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.kt-emoji{font-size:1.5rem;line-height:1}
+.kt-name{font-size:1.2rem;font-weight:800;color:var(--text);flex:1;letter-spacing:-.01em}
+.kt-count{font-size:1.5rem;font-weight:800;color:var(--gold);line-height:1;font-variant-numeric:tabular-nums}
+
+.kt-table{width:100%;border-collapse:collapse;font-size:.86rem}
+.kt-table th{text-align:left;padding:8px 10px;color:var(--text-dim);font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.015);font-weight:600}
+.kt-table th.kt-age, .kt-table td.kt-age{text-align:right;width:62px;white-space:nowrap}
+.kt-table td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.03)}
+.kt-table tbody tr:last-child td{border-bottom:none}
+.kt-table tbody tr:hover td{background:rgba(255,255,255,.02)}
+.kt-table td.kt-ticket{color:var(--purple-light);font-size:.8rem}
+.kt-warn{cursor:help;margin-left:2px}
+.kt-nodob{color:var(--text-dim)}
+.kt-empty{text-align:center;padding:24px;color:var(--text-dim);font-size:.86rem;font-style:italic;border-top:1px solid rgba(255,255,255,.06)}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <h1>Kids &amp; Teens</h1>
+  <p>Mindvalley U 2026 — Tallinn, Estonia</p>
+  <div class="timestamp">Data snapshot: June 30, 2026 at 07:10 UTC</div>
+</header>
+
+<div class="hero-grid">
+  <div class="hero-card valid">
+    <div class="hero-icon">✅</div>
+    <div class="hero-label">Valid Tickets</div>
+    <div class="hero-value">1310</div>
+    <div class="hero-sub">
+      <span>7d: <span class="num">55</span></span>
+      <span>24h: <span class="num">13</span></span>
+    </div>
+  </div>
+  <div class="hero-card paid">
+    <div class="hero-icon">💳</div>
+    <div class="hero-label">Paid Tickets</div>
+    <div class="hero-value">1028</div>
+    <div class="hero-sub">
+      <span>7d: <span class="num">42</span></span>
+      <span>24h: <span class="num">12</span></span>
+    </div>
+  </div>
+  <div class="hero-card refund">
+    <div class="hero-icon">🔄</div>
+    <div class="hero-label">Refunded Tickets</div>
+    <div class="hero-value">383</div>
+    <div class="hero-sub">
+      <span>7d: <span class="num">3</span></span>
+      <span>24h: <span class="num">0</span></span>
+    </div>
+  </div>
+  <div class="hero-card unassigned">
+    <div class="hero-icon">🔔</div>
+    <div class="hero-label">Unassigned Tickets</div>
+    <div class="hero-value">49</div>
+  </div>
+</div>
+
+<div class="kt-section-label">⚠️ Capacity Risk <span style="font-size:.75rem;font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-left:8px">Cap. 70 pax / category / week</span></div>
+
+<div class="cap-grid">
+  
+<div class="cap-card risk-red">
+  <div class="cap-header">
+    <div class="cap-title">🧒 Kids</div>
+    <div class="cap-week-badge">Week 1</div>
+  </div>
+  <div class="traffic-light">
+    <div class="tl-dot"></div>
+    <div class="tl-status">At Risk</div>
+    <div class="tl-sub">Overflow risk: +1</div>
+  </div>
+  <div class="cap-bar-wrap">
+    <div class="cap-bar-labels"><span>0</span><span>Capacity</span></div>
+    <div class="cap-bar-track">
+      <div class="cap-bar-confirmed"  style="width:69.1%"></div>
+      <div class="cap-bar-unassigned" style="left:69.1%;width:14.1%"></div>
+      <div class="cap-bar-marker"     style="left:82%"></div>
+    </div>
+  </div>
+  <div class="cap-numbers">
+    <div class="cap-num-item"><div class="cap-num-val">59</div><div class="cap-num-label">Confirmed</div></div>
+    <div class="cap-num-item"><div class="cap-num-val">12</div><div class="cap-num-label">No Week Sel.</div></div>
+    <div class="cap-num-item worst"><div class="cap-num-val">71</div><div class="cap-num-label">Worst Case</div></div>
+  </div>
+  <div class="cap-capacity-note">Capacity: <strong>70</strong> · Overflow risk: <strong style="color:#f87171">+1</strong></div>
+</div>
+  
+<div class="cap-card risk-yellow">
+  <div class="cap-header">
+    <div class="cap-title">🧒 Kids</div>
+    <div class="cap-week-badge">Week 2</div>
+  </div>
+  <div class="traffic-light">
+    <div class="tl-dot"></div>
+    <div class="tl-status">Watch</div>
+    <div class="tl-sub">1 spots left in worst case</div>
+  </div>
+  <div class="cap-bar-wrap">
+    <div class="cap-bar-labels"><span>0</span><span>Capacity</span></div>
+    <div class="cap-bar-track">
+      <div class="cap-bar-confirmed"  style="width:66.8%"></div>
+      <div class="cap-bar-unassigned" style="left:66.8%;width:14.1%"></div>
+      <div class="cap-bar-marker"     style="left:82%"></div>
+    </div>
+  </div>
+  <div class="cap-numbers">
+    <div class="cap-num-item"><div class="cap-num-val">57</div><div class="cap-num-label">Confirmed</div></div>
+    <div class="cap-num-item"><div class="cap-num-val">12</div><div class="cap-num-label">No Week Sel.</div></div>
+    <div class="cap-num-item worst"><div class="cap-num-val">69</div><div class="cap-num-label">Worst Case</div></div>
+  </div>
+  <div class="cap-capacity-note">Capacity: <strong>70</strong> · Buffer: <strong style="color:#fbbf24">1 spots</strong></div>
+</div>
+  
+<div class="cap-card risk-yellow">
+  <div class="cap-header">
+    <div class="cap-title">🧑 Teens</div>
+    <div class="cap-week-badge">Week 1</div>
+  </div>
+  <div class="traffic-light">
+    <div class="tl-dot"></div>
+    <div class="tl-status">Watch</div>
+    <div class="tl-sub">2 spots left in worst case</div>
+  </div>
+  <div class="cap-bar-wrap">
+    <div class="cap-bar-labels"><span>0</span><span>Capacity</span></div>
+    <div class="cap-bar-track">
+      <div class="cap-bar-confirmed"  style="width:60.9%"></div>
+      <div class="cap-bar-unassigned" style="left:60.9%;width:18.7%"></div>
+      <div class="cap-bar-marker"     style="left:82%"></div>
+    </div>
+  </div>
+  <div class="cap-numbers">
+    <div class="cap-num-item"><div class="cap-num-val">52</div><div class="cap-num-label">Confirmed</div></div>
+    <div class="cap-num-item"><div class="cap-num-val">16</div><div class="cap-num-label">No Week Sel.</div></div>
+    <div class="cap-num-item worst"><div class="cap-num-val">68</div><div class="cap-num-label">Worst Case</div></div>
+  </div>
+  <div class="cap-capacity-note">Capacity: <strong>70</strong> · Buffer: <strong style="color:#fbbf24">2 spots</strong></div>
+</div>
+  
+<div class="cap-card risk-yellow">
+  <div class="cap-header">
+    <div class="cap-title">🧑 Teens</div>
+    <div class="cap-week-badge">Week 2</div>
+  </div>
+  <div class="traffic-light">
+    <div class="tl-dot"></div>
+    <div class="tl-status">Watch</div>
+    <div class="tl-sub">2 spots left in worst case</div>
+  </div>
+  <div class="cap-bar-wrap">
+    <div class="cap-bar-labels"><span>0</span><span>Capacity</span></div>
+    <div class="cap-bar-track">
+      <div class="cap-bar-confirmed"  style="width:60.9%"></div>
+      <div class="cap-bar-unassigned" style="left:60.9%;width:18.7%"></div>
+      <div class="cap-bar-marker"     style="left:82%"></div>
+    </div>
+  </div>
+  <div class="cap-numbers">
+    <div class="cap-num-item"><div class="cap-num-val">52</div><div class="cap-num-label">Confirmed</div></div>
+    <div class="cap-num-item"><div class="cap-num-val">16</div><div class="cap-num-label">No Week Sel.</div></div>
+    <div class="cap-num-item worst"><div class="cap-num-val">68</div><div class="cap-num-label">Worst Case</div></div>
+  </div>
+  <div class="cap-capacity-note">Capacity: <strong>70</strong> · Buffer: <strong style="color:#fbbf24">2 spots</strong></div>
+</div>
+</div>
+
+<div class="kt-section-label">Week 1 · July 20 – 26</div>
+
+<div class="kt-week-grid">
+  
+<div class="kt-card">
+  <div class="kt-head">
+    <span class="kt-emoji">🧒</span>
+    <h2 class="kt-name">Kids</h2>
+    <span class="kt-count">59</span>
+  </div>
+  <table class="kt-table">
+    <thead><tr><th>Name</th><th>Ticket Type</th><th>Age</th></tr></thead>
+    <tbody><tr><td>Louisa von Zitzewitz</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>1 <span class="kt-warn" title="Outside the expected 6–12 range">⚠️</span></td></tr><tr><td>Alena Medeiros</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>6</td></tr><tr><td>Ella Nuriel</td><td class='kt-ticket'>Kid (6-12 y.o) | 1 Week - Early Bird</td><td class='kt-age'>6</td></tr><tr><td>Erik Thomas Pijanowski</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>6</td></tr><tr><td>Kayla Chin</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>6</td></tr><tr><td>Livia Nerad</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>6</td></tr><tr><td>Rock Raiden Delronge</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>6</td></tr><tr><td>Âmbar Silvério</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>6</td></tr><tr><td>Ari Fazeli</td><td class='kt-ticket'>Kid (6-12 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>7</td></tr><tr><td>Mohana Chellaney Luvrano</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>7</td></tr><tr><td>Ranbir Bains</td><td class='kt-ticket'>Kid (6-12 y.o) | 1 Week - Early Bird</td><td class='kt-age'>7</td></tr><tr><td>Rex Aiden Delronge</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>7</td></tr><tr><td>Rohan Gallimore</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>7</td></tr><tr><td>Ayan Kanani</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>8</td></tr><tr><td>Darya Fazeli</td><td class='kt-ticket'>Kid (6-12 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>8</td></tr><tr><td>Ema Balukcic</td><td class='kt-ticket'>Kid (6-12 y.o) | 1 Week - Early Bird</td><td class='kt-age'>8</td></tr><tr><td>Griffin Baumann</td><td class='kt-ticket'>Kid (6-12 y.o) | 1 Week - Regular</td><td class='kt-age'>8</td></tr><tr><td>Isabella (Izzy) Quinlan</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>8</td></tr><tr><td>Kjell Noah Rehling</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>8</td></tr><tr><td>Matthew MCKIBBIN-WANG</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>8</td></tr><tr><td>Philip Skarlatov</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>8</td></tr><tr><td>Robert MacGregor</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>8</td></tr><tr><td>Adala Berki</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>9</td></tr><tr><td>Aleksander Chybicki</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>9</td></tr><tr><td>Anna-Maria Onida Rehling</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>9</td></tr><tr><td>Lea Aping</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>9</td></tr><tr><td>Leon Palmqvist</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>9</td></tr><tr><td>Luca Davies</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>9</td></tr><tr><td>Melody Gallimore</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>9</td></tr><tr><td>Savva Sorokin</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>9</td></tr><tr><td>Valentina Vallejo</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>9</td></tr><tr><td>Amara Rackliff</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>10</td></tr><tr><td>Cadyn Lange</td><td class='kt-ticket'>Kid (6-12 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>10</td></tr><tr><td>Kian Kashyap</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>10</td></tr><tr><td>Ojas Dhar</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>10</td></tr><tr><td>Reeva Liu</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>10</td></tr><tr><td>Selim Elturky</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>10</td></tr><tr><td>Aimer Fox</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>11</td></tr><tr><td>David Levi Kandelhard</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>11</td></tr><tr><td>Diego Nerad</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>11</td></tr><tr><td>Diya Kathpalia</td><td class='kt-ticket'>Kid (6-12 y.o) | 1 Week - Early Bird</td><td class='kt-age'>11</td></tr><tr><td>Eva Munoz</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>11</td></tr><tr><td>George Davies</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>11</td></tr><tr><td>Jacob Grace</td><td class='kt-ticket'>Kid (6-12 y.o) | 2 Weeks - Regular</td><td class='kt-age'>11</td></tr><tr><td>Kei Nilsson</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>11</td></tr><tr><td>Mason Chin</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>11</td></tr><tr><td>Viya Palmqvist</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>11</td></tr><tr><td>Daisy Nowak</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>12</td></tr><tr><td>Elisa Hausseguy</td><td class='kt-ticket'>Kid (6-12 y.o) | 1 Week - Regular</td><td class='kt-age'>12</td></tr><tr><td>Emmabella Ferris</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>12</td></tr><tr><td>Grayson Defrank-Lange</td><td class='kt-ticket'>Kid (6-12 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>12</td></tr><tr><td>Harper Achtemichuk</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>12</td></tr><tr><td>Makali’i Dean</td><td class='kt-ticket'>Kid (6-12 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>12</td></tr><tr><td>Tommy Nuriel</td><td class='kt-ticket'>Kid (6-12 y.o) | 1 Week - Early Bird</td><td class='kt-age'>12</td></tr><tr><td>Kornel Letoublon</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>13 <span class="kt-warn" title="Outside the expected 6–12 range">⚠️</span></td></tr><tr><td>Jessyl Lange</td><td class='kt-ticket'>Kid (6-12 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>35 <span class="kt-warn" title="Outside the expected 6–12 range">⚠️</span></td></tr><tr><td>Jessyl Lange</td><td class='kt-ticket'>Kid (6-12 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>35 <span class="kt-warn" title="Outside the expected 6–12 range">⚠️</span></td></tr><tr><td>Andrea Vega</td><td class='kt-ticket'>Kid (6-12 y.o) | 2 Weeks - Regular</td><td class='kt-age'>40 <span class="kt-warn" title="Outside the expected 6–12 range">⚠️</span></td></tr><tr><td>Leonard yeshe Rucks</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>47 <span class="kt-warn" title="Outside the expected 6–12 range">⚠️</span></td></tr></tbody>
+  </table>
+</div>
+  
+<div class="kt-card">
+  <div class="kt-head">
+    <span class="kt-emoji">🧑</span>
+    <h2 class="kt-name">Teens</h2>
+    <span class="kt-count">52</span>
+  </div>
+  <table class="kt-table">
+    <thead><tr><th>Name</th><th>Ticket Type</th><th>Age</th></tr></thead>
+    <tbody><tr><td>Jacob Grace</td><td class='kt-ticket'>Teen (13-17 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>11 <span class="kt-warn" title="Outside the expected 13–17 range">⚠️</span></td></tr><tr><td>Lucien Tagon Hilfiker</td><td class='kt-ticket'>Teen (13-17 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>12 <span class="kt-warn" title="Outside the expected 13–17 range">⚠️</span></td></tr><tr><td>Zaid Grace</td><td class='kt-ticket'>Teen (13-17 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>12 <span class="kt-warn" title="Outside the expected 13–17 range">⚠️</span></td></tr><tr><td>Zaid Grace</td><td class='kt-ticket'>Teen (13-17 y.o) | 2 Weeks - Regular</td><td class='kt-age'>12 <span class="kt-warn" title="Outside the expected 13–17 range">⚠️</span></td></tr><tr><td>Ivaan Shah</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>13</td></tr><tr><td>Leonid Oganov</td><td class='kt-ticket'>Teen (13-17 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>13</td></tr><tr><td>Mila Ganatra</td><td class='kt-ticket'>Teen (13-17 y.o) | 1 Week - Early Bird</td><td class='kt-age'>13</td></tr><tr><td>Reina Kashyap</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>13</td></tr><tr><td>Riley Achtemichuk</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>13</td></tr><tr><td>Sira Munoz</td><td class='kt-ticket'>Teen (13-17 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>13</td></tr><tr><td>Sofia Sorikina</td><td class='kt-ticket'>Teen (13-17 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>13</td></tr><tr><td>Sydney Embley</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>13</td></tr><tr><td>Aidan Grace</td><td class='kt-ticket'>Teen (13-17 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>14</td></tr><tr><td>Bram Dekker</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>14</td></tr><tr><td>Corben Young McAlister</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>14</td></tr><tr><td>Diego Hausseguy</td><td class='kt-ticket'>Teen (13-17 y.o) | 1 Week - Regular</td><td class='kt-age'>14</td></tr><tr><td>Erik Nilsson</td><td class='kt-ticket'>Teen (13-17 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>14</td></tr><tr><td>Harper White</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>14</td></tr><tr><td>Mirtel Härms</td><td class='kt-ticket'>Teen (13-17 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>14</td></tr><tr><td>Scarlett White</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>14</td></tr><tr><td>Alberts Ulmanis</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Anton Curcio Widows</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Benjamin Benedik</td><td class='kt-ticket'>Teen (13-17 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Easton Kwok</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Edanyi Gonzalez</td><td class='kt-ticket'>Teen (13-17 y.o) | 1 Week - Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Ellysia Scott Paxton</td><td class='kt-ticket'>Teen (13-17 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Jonathan Nuriel</td><td class='kt-ticket'>Teen (13-17 y.o) | 1 Week - Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Lilyana Ferris</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Mahmoud AbuAyyash</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Oshin Dhar</td><td class='kt-ticket'>Teen (13-17 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Sophia Pastor Howse</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Viviana Grafos</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>15</td></tr><tr><td>william (TREY) COLE</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Zachary Pirogov</td><td class='kt-ticket'>Teen (13-17 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Aurora Young McAlister</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>16</td></tr><tr><td>Eitan Nuriel</td><td class='kt-ticket'>Teen (13-17 y.o) | 1 Week - Early Bird</td><td class='kt-age'>16</td></tr><tr><td>Elena Duovski</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>16</td></tr><tr><td>Jade Manthey</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>16</td></tr><tr><td>Karina Kashyap</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>16</td></tr><tr><td>Lawrence Garrett</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>16</td></tr><tr><td>Patricija Benedik</td><td class='kt-ticket'>Teen (13-17 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>16</td></tr><tr><td>Tyce Davies</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>16</td></tr><tr><td>Daniyal Akerman</td><td class='kt-ticket'>Teen (13-17 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>17</td></tr><tr><td>Geoffrey Lopez</td><td class='kt-ticket'>Teen (13-17 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>17</td></tr><tr><td>Nataniel Letoublon</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>17</td></tr><tr><td>Sahara Gauss</td><td class='kt-ticket'>Teen (13-17 y.o) | 1 Week - Early Bird</td><td class='kt-age'>17</td></tr><tr><td>Unai Tellez</td><td class='kt-ticket'>Teen (13-17 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>17</td></tr><tr><td>Valentina Cole</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>17</td></tr><tr><td>Brandon Kwok</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>18 <span class="kt-warn" title="Outside the expected 13–17 range">⚠️</span></td></tr><tr><td>Iva Comar</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>19 <span class="kt-warn" title="Outside the expected 13–17 range">⚠️</span></td></tr><tr><td>Alexandra Indriani Tulusan</td><td class='kt-ticket'>Teen (13-17 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>51 <span class="kt-warn" title="Outside the expected 13–17 range">⚠️</span></td></tr><tr><td>Alexi Melvin</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>66 <span class="kt-warn" title="Outside the expected 13–17 range">⚠️</span></td></tr></tbody>
+  </table>
+</div>
+</div>
+
+<div class="kt-section-label">Week 2 · July 27 – August 2</div>
+
+<div class="kt-week-grid">
+  
+<div class="kt-card">
+  <div class="kt-head">
+    <span class="kt-emoji">🧒</span>
+    <h2 class="kt-name">Kids</h2>
+    <span class="kt-count">57</span>
+  </div>
+  <table class="kt-table">
+    <thead><tr><th>Name</th><th>Ticket Type</th><th>Age</th></tr></thead>
+    <tbody><tr><td>Louisa von Zitzewitz</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>1 <span class="kt-warn" title="Outside the expected 6–12 range">⚠️</span></td></tr><tr><td>Ella Nuriel</td><td class='kt-ticket'>Kid (6-12 y.o) | 1 Week - Early Bird</td><td class='kt-age'>6</td></tr><tr><td>Emmett Ee</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>6</td></tr><tr><td>Erik Thomas Pijanowski</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>6</td></tr><tr><td>Lakshitha Thakur</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>6</td></tr><tr><td>Livia Nerad</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>6</td></tr><tr><td>Rock Raiden Delronge</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>6</td></tr><tr><td>Âmbar Silvério</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>6</td></tr><tr><td>Ari Fazeli</td><td class='kt-ticket'>Kid (6-12 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>7</td></tr><tr><td>Mohana Chellaney Luvrano</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>7</td></tr><tr><td>Regan Wilkinson</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>7</td></tr><tr><td>Rex Aiden Delronge</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>7</td></tr><tr><td>Ayan Kanani</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>8</td></tr><tr><td>Darya Fazeli</td><td class='kt-ticket'>Kid (6-12 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>8</td></tr><tr><td>Kjell Noah Rehling</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>8</td></tr><tr><td>Matthew MCKIBBIN-WANG</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>8</td></tr><tr><td>Philip Skarlatov</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>8</td></tr><tr><td>Robert MacGregor</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>8</td></tr><tr><td>Sara Schwarz</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>8</td></tr><tr><td>Adala Berki</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>9</td></tr><tr><td>Aleksander Chybicki</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>9</td></tr><tr><td>Anna-Maria Onida Rehling</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>9</td></tr><tr><td>Everett Ee</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>9</td></tr><tr><td>Lea Aping</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>9</td></tr><tr><td>Leon Palmqvist</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>9</td></tr><tr><td>Lia Schwarz</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>9</td></tr><tr><td>Lincoln Wilkinson</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>9</td></tr><tr><td>Moritz Schmidt</td><td class='kt-ticket'>Kid (6-12 y.o) | 1 Week - Early Bird</td><td class='kt-age'>9</td></tr><tr><td>Amara Rackliff</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>10</td></tr><tr><td>Asha Calla</td><td class='kt-ticket'>Kid (6-12 y.o) | 1 Week - Early Bird</td><td class='kt-age'>10</td></tr><tr><td>Cadyn Lange</td><td class='kt-ticket'>Kid (6-12 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>10</td></tr><tr><td>Kian Kashyap</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>10</td></tr><tr><td>Naomi Grobman</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>10</td></tr><tr><td>Neo Drosin</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>10</td></tr><tr><td>Reeva Liu</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>10</td></tr><tr><td>Selim Elturky</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>10</td></tr><tr><td>SOFIA JIN-LAN LEUNG KI</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>10</td></tr><tr><td>Aron Grobman</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>11</td></tr><tr><td>David Levi Kandelhard</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>11</td></tr><tr><td>Diego Nerad</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>11</td></tr><tr><td>Elliott Ee</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>11</td></tr><tr><td>Jacob Grace</td><td class='kt-ticket'>Kid (6-12 y.o) | 2 Weeks - Regular</td><td class='kt-age'>11</td></tr><tr><td>Kei Nilsson</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>11</td></tr><tr><td>Severin Prince James</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>11</td></tr><tr><td>Stefanie Pollan</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>11</td></tr><tr><td>Viya Palmqvist</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>11</td></tr><tr><td>Daisy Nowak</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>12</td></tr><tr><td>Emmabella Ferris</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>12</td></tr><tr><td>Grayson Defrank-Lange</td><td class='kt-ticket'>Kid (6-12 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>12</td></tr><tr><td>Harper Achtemichuk</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>12</td></tr><tr><td>Makali’i Dean</td><td class='kt-ticket'>Kid (6-12 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>12</td></tr><tr><td>Tommy Nuriel</td><td class='kt-ticket'>Kid (6-12 y.o) | 1 Week - Early Bird</td><td class='kt-age'>12</td></tr><tr><td>Kornel Letoublon</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>13 <span class="kt-warn" title="Outside the expected 6–12 range">⚠️</span></td></tr><tr><td>Jessyl Lange</td><td class='kt-ticket'>Kid (6-12 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>35 <span class="kt-warn" title="Outside the expected 6–12 range">⚠️</span></td></tr><tr><td>Jessyl Lange</td><td class='kt-ticket'>Kid (6-12 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>35 <span class="kt-warn" title="Outside the expected 6–12 range">⚠️</span></td></tr><tr><td>Andrea Vega</td><td class='kt-ticket'>Kid (6-12 y.o) | 2 Weeks - Regular</td><td class='kt-age'>40 <span class="kt-warn" title="Outside the expected 6–12 range">⚠️</span></td></tr><tr><td>Leonard yeshe Rucks</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>47 <span class="kt-warn" title="Outside the expected 6–12 range">⚠️</span></td></tr></tbody>
+  </table>
+</div>
+  
+<div class="kt-card">
+  <div class="kt-head">
+    <span class="kt-emoji">🧑</span>
+    <h2 class="kt-name">Teens</h2>
+    <span class="kt-count">52</span>
+  </div>
+  <table class="kt-table">
+    <thead><tr><th>Name</th><th>Ticket Type</th><th>Age</th></tr></thead>
+    <tbody><tr><td>Jacob Grace</td><td class='kt-ticket'>Teen (13-17 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>11 <span class="kt-warn" title="Outside the expected 13–17 range">⚠️</span></td></tr><tr><td>Iuri Ionuț Dincă</td><td class='kt-ticket'>Teen (13-17 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>12 <span class="kt-warn" title="Outside the expected 13–17 range">⚠️</span></td></tr><tr><td>Lucien Tagon Hilfiker</td><td class='kt-ticket'>Teen (13-17 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>12 <span class="kt-warn" title="Outside the expected 13–17 range">⚠️</span></td></tr><tr><td>Zaid Grace</td><td class='kt-ticket'>Teen (13-17 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>12 <span class="kt-warn" title="Outside the expected 13–17 range">⚠️</span></td></tr><tr><td>Zaid Grace</td><td class='kt-ticket'>Teen (13-17 y.o) | 2 Weeks - Regular</td><td class='kt-age'>12 <span class="kt-warn" title="Outside the expected 13–17 range">⚠️</span></td></tr><tr><td>Aaryan Calla</td><td class='kt-ticket'>Teen (13-17 y.o) | 1 Week - Early Bird</td><td class='kt-age'>13</td></tr><tr><td>Amaya Rouabhia Liataou</td><td class='kt-ticket'>Teen (13-17 y.o) | 1 Week - Regular</td><td class='kt-age'>13</td></tr><tr><td>Ava Lupsan</td><td class='kt-ticket'>Teen (13-17 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>13</td></tr><tr><td>Ivaan Shah</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>13</td></tr><tr><td>Leonid Oganov</td><td class='kt-ticket'>Teen (13-17 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>13</td></tr><tr><td>Maisie Desart</td><td class='kt-ticket'>Teen (13-17 y.o) | 1 Week - Regular</td><td class='kt-age'>13</td></tr><tr><td>Reina Kashyap</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>13</td></tr><tr><td>Riley Achtemichuk</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>13</td></tr><tr><td>Sydney Embley</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>13</td></tr><tr><td>Théo Decaudin</td><td class='kt-ticket'>Teen (13-17 y.o) | 1 Week - Early Bird</td><td class='kt-age'>13</td></tr><tr><td>Aidan Grace</td><td class='kt-ticket'>Teen (13-17 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>14</td></tr><tr><td>Bram Dekker</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>14</td></tr><tr><td>Corben Young McAlister</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>14</td></tr><tr><td>Erik Nilsson</td><td class='kt-ticket'>Teen (13-17 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>14</td></tr><tr><td>Harper White</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>14</td></tr><tr><td>Mirtel Härms</td><td class='kt-ticket'>Teen (13-17 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>14</td></tr><tr><td>Scarlett White</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>14</td></tr><tr><td>Sophie Lorraine Saran</td><td class='kt-ticket'>Teen (13-17 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>14</td></tr><tr><td>Alberts Ulmanis</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Anton Curcio Widows</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Easton Kwok</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Ellysia Scott Paxton</td><td class='kt-ticket'>Teen (13-17 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Jonathan Nuriel</td><td class='kt-ticket'>Teen (13-17 y.o) | 1 Week - Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Lilyana Ferris</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Mahmoud AbuAyyash</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Niklas Schmidt</td><td class='kt-ticket'>Teen (13-17 y.o) | 1 Week - Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Sofia Seward</td><td class='kt-ticket'>Teen (13-17 y.o) | 1 Week - Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Sophia Pastor Howse</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Viviana Grafos</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>15</td></tr><tr><td>william (TREY) COLE</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Aurora Young McAlister</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>16</td></tr><tr><td>Eitan Nuriel</td><td class='kt-ticket'>Teen (13-17 y.o) | 1 Week - Early Bird</td><td class='kt-age'>16</td></tr><tr><td>Elena Duovski</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>16</td></tr><tr><td>Jade Manthey</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>16</td></tr><tr><td>Karina Kashyap</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>16</td></tr><tr><td>Lakshya Thakur</td><td class='kt-ticket'>Teen (13-17 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>16</td></tr><tr><td>Lawrence Garrett</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>16</td></tr><tr><td>Lucas Decaudin</td><td class='kt-ticket'>Teen (13-17 y.o) | 1 Week - Early Bird</td><td class='kt-age'>16</td></tr><tr><td>Mia Contreras</td><td class='kt-ticket'>Teen (13-17 y.o) | 1 Week - Early Bird</td><td class='kt-age'>16</td></tr><tr><td>Tyce Davies</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>16</td></tr><tr><td>Chiara Seward</td><td class='kt-ticket'>Teen (13-17 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>17</td></tr><tr><td>Geoffrey Lopez</td><td class='kt-ticket'>Teen (13-17 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'>17</td></tr><tr><td>Nataniel Letoublon</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>17</td></tr><tr><td>Valentina Cole</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>17</td></tr><tr><td>Brandon Kwok</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>18 <span class="kt-warn" title="Outside the expected 13–17 range">⚠️</span></td></tr><tr><td>Iva Comar</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>19 <span class="kt-warn" title="Outside the expected 13–17 range">⚠️</span></td></tr><tr><td>Alexi Melvin</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>66 <span class="kt-warn" title="Outside the expected 13–17 range">⚠️</span></td></tr></tbody>
+  </table>
+</div>
+</div>
+
+<div class="kt-section-label">No Week Selected</div>
+<div class="kt-week-grid">
+  
+<div class="kt-card">
+  <div class="kt-head">
+    <span class="kt-emoji">🧒</span>
+    <h2 class="kt-name">Kids</h2>
+    <span class="kt-count">12</span>
+  </div>
+  <table class="kt-table">
+    <thead><tr><th>Name</th><th>Ticket Type</th><th>Age</th></tr></thead>
+    <tbody><tr><td>Amelia Driver</td><td class='kt-ticket'>Kid (6-12 y.o) | 1 Week - Early Bird</td><td class='kt-age'>7</td></tr><tr><td>Mitra Djahanshahi</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'>7</td></tr><tr><td>Alina Marii Mahhov</td><td class='kt-ticket'>Kid (6-12 y.o) | 1 Week - Early Bird</td><td class='kt-age'>9</td></tr><tr><td>Roman Denevich</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>9</td></tr><tr><td>Gabriel Denevich</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>10</td></tr><tr><td>Hardijs Saucuks</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>10</td></tr><tr><td>Araceli Patterson (Unassigned)</td><td class='kt-ticket'>Kid (6-12 y.o) | 1 Week - Regular</td><td class='kt-age'><span class="kt-nodob">—</span></td></tr><tr><td>Claudio Torassa</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'><span class="kt-nodob">—</span></td></tr><tr><td>Dante Comar</td><td class='kt-ticket'>Kid (6-12 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'><span class="kt-nodob">—</span></td></tr><tr><td>Kayla Renfer</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'><span class="kt-nodob">—</span></td></tr><tr><td>Kimberly Swarth (Unassigned)</td><td class='kt-ticket'>Kid (6-12 y.o) | 1 Week - Early Bird</td><td class='kt-age'><span class="kt-nodob">—</span></td></tr><tr><td>Nicole Fuchs</td><td class='kt-ticket'>Kid (6-12 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'><span class="kt-nodob">—</span></td></tr></tbody>
+  </table>
+</div>
+  
+<div class="kt-card">
+  <div class="kt-head">
+    <span class="kt-emoji">🧑</span>
+    <h2 class="kt-name">Teens</h2>
+    <span class="kt-count">16</span>
+  </div>
+  <table class="kt-table">
+    <thead><tr><th>Name</th><th>Ticket Type</th><th>Age</th></tr></thead>
+    <tbody><tr><td>Ronald Nadtochii</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>13</td></tr><tr><td>Emils Saucuks</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>14</td></tr><tr><td>Max Cohen Rodríguez Verdín</td><td class='kt-ticket'>Teen (13-17 y.o) | 1 Week - Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Michael Nadtochii</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'>15</td></tr><tr><td>Joele Simran Maria Cota</td><td class='kt-ticket'>Teen (13-17 y.o) | 1 Week - Early Bird</td><td class='kt-age'>17</td></tr><tr><td>Alexandra Indriani Tulusan (Unassigned)</td><td class='kt-ticket'>Teen (13-17 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'><span class="kt-nodob">—</span></td></tr><tr><td>Emma Carmen MacLaren Rodriguez de Guzmán</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'><span class="kt-nodob">—</span></td></tr><tr><td>Eve Lakhiani</td><td class='kt-ticket'>Teen (13-17 y.o) | 2 Weeks - Regular</td><td class='kt-age'><span class="kt-nodob">—</span></td></tr><tr><td>Kanesha Ekthamwongsa</td><td class='kt-ticket'>Teen (13-17 yo.) | 1 Week - Super Early Bird</td><td class='kt-age'><span class="kt-nodob">—</span></td></tr><tr><td>Katrien Kolenberg (Unassigned)</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'><span class="kt-nodob">—</span></td></tr><tr><td>Lisa Tan (Unassigned)</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'><span class="kt-nodob">—</span></td></tr><tr><td>Mila Rautenbach</td><td class='kt-ticket'>Teen (13-17 y.o) | 2 Weeks - Regular</td><td class='kt-age'><span class="kt-nodob">—</span></td></tr><tr><td>Ona Cabedo Wells</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'><span class="kt-nodob">—</span></td></tr><tr><td>Pau Blair MacLaren Rodriguez de Guzmán</td><td class='kt-ticket'>Teen (13-17 yo.) | 2 Weeks - Super Early Bird</td><td class='kt-age'><span class="kt-nodob">—</span></td></tr><tr><td>Sarah Doll Steinberg (Unassigned)</td><td class='kt-ticket'>Teen (13-17 y.o) | 2 Weeks - Early Bird</td><td class='kt-age'><span class="kt-nodob">—</span></td></tr><tr><td>Zoya Mari Bella Angelina Cota</td><td class='kt-ticket'>Teen (13-17 y.o) | 1 Week - Early Bird</td><td class='kt-age'><span class="kt-nodob">—</span></td></tr></tbody>
+  </table>
+</div>
+</div>
+
+</div>
+</body>
+</html>

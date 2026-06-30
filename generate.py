@@ -191,6 +191,50 @@ def get_week(reg):
                     return val
     return None
 
+# ── Date-of-birth + age-at-event helpers (Kids & Teens page) ─────────────────
+EVENT_START_DATE = datetime(2026, 7, 20)  # MVU 2026 Day 1 — used for age-at-event
+
+def get_dob(reg):
+    """Return the attendee's date of birth as a datetime (date portion only),
+    or None if missing/unparseable. Robust against both dict and list shapes
+    of `properties`, and several date formats the Bizzabo form might emit."""
+    props = reg.get("properties", {})
+    raw = None
+    if isinstance(props, dict):
+        for k in ("date_of_birth", "dob", "birthdate", "dateOfBirth", "date-of-birth"):
+            v = props.get(k)
+            if v:
+                raw = v; break
+        if not raw:
+            for k, v in props.items():
+                if v and ("birth" in k.lower() or k.lower() == "dob"):
+                    raw = v; break
+    elif isinstance(props, list):
+        for p in props:
+            if not isinstance(p, dict): continue
+            sid   = (p.get("systemFieldId") or "").lower()
+            label = (p.get("label") or "").lower()
+            if "birth" in sid or "birth" in label or sid == "dob" or label == "dob":
+                v = p.get("value")
+                if v: raw = v; break
+    if not raw: return None
+    s = str(raw).strip()
+    if "T" in s: s = s.split("T")[0]
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%Y/%m/%d", "%d-%m-%Y", "%d.%m.%Y"):
+        try: return datetime.strptime(s, fmt)
+        except ValueError: continue
+    return None
+
+def age_at_event(reg):
+    """Age the attendee will have on EVENT_START_DATE (20 Jul 2026), or None
+    if DOB is missing/unparseable."""
+    dob = get_dob(reg)
+    if not dob: return None
+    age = EVENT_START_DATE.year - dob.year
+    if (EVENT_START_DATE.month, EVENT_START_DATE.day) < (dob.month, dob.day):
+        age -= 1
+    return age
+
 # ── Ticket-tier classifier ────────────────────────────────────────────────────
 def classify_tier(ticket_name):
     """Maps a Bizzabo ticketName to a pricing tier label.
@@ -1580,6 +1624,337 @@ header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
 </body>
 </html>"""
 
+def render_kids_teens_page(regs, hero, kids, teens, cap):
+    """Kids & Teens roster page. Two rows of two side-by-side tables:
+      Week 1: [Kids | Teens]
+      Week 2: [Kids | Teens]
+    Each table is sorted ascending by age (no-DOB rows at the end).
+    'Both Weeks' attendees appear in BOTH W1 and W2.
+    Ages outside the expected program range get a ⚠️ flag
+    (Kids: 6–12 · Teens: 13–17). Comped tickets included; refunded excluded."""
+    now_str = datetime.now(tz=timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
+
+    # ── Source set: same 'valid' definition as the rest of the dashboard ──
+    valid = [r for r in regs if r.get("validity","").lower() == "valid"]
+
+    # ── Classify each kid/teen registration ──
+    def classify(r):
+        t = (r.get("ticketName") or "").lower()
+        if "kid"  in t: return "kids"
+        if "teen" in t: return "teens"
+        return None
+
+    BANDS = {"kids": (6, 12), "teens": (13, 17)}
+
+    def row(r, program):
+        age = age_at_event(r)
+        lo, hi = BANDS[program]
+        out_of_range = (age is not None) and (age < lo or age > hi)
+        return {
+            "name":         get_attendee_name(r),
+            "ticket":       r.get("ticketName") or "",
+            "age":          age,
+            "out_of_range": out_of_range,
+            "week":         get_week(r),
+        }
+
+    buckets = {
+        "kids":  {"w1": [], "w2": [], "unass": []},
+        "teens": {"w1": [], "w2": [], "unass": []},
+    }
+    for r in valid:
+        prog = classify(r)
+        if not prog: continue
+        rec  = row(r, prog)
+        w    = rec["week"]
+        if w == "Week 1":     buckets[prog]["w1"].append(rec)
+        elif w == "Week 2":   buckets[prog]["w2"].append(rec)
+        elif w == "Both Weeks":
+            buckets[prog]["w1"].append(rec)
+            buckets[prog]["w2"].append(rec)
+        else:
+            buckets[prog]["unass"].append(rec)
+
+    def sort_key(rec):
+        # No-DOB rows go last: ages-known sorted ascending, then None bucket.
+        return (rec["age"] is None, rec["age"] if rec["age"] is not None else 0, rec["name"].lower())
+
+    for prog in buckets:
+        for k in buckets[prog]:
+            buckets[prog][k].sort(key=sort_key)
+
+    # ── Table builder ──
+    def render_table(prog, week_key, emoji, label):
+        rows = buckets[prog][week_key]
+        if not rows:
+            return f"""
+<div class="kt-card">
+  <div class="kt-head">
+    <span class="kt-emoji">{emoji}</span>
+    <h2 class="kt-name">{label}</h2>
+    <span class="kt-count">0</span>
+  </div>
+  <div class="kt-empty">No registrations yet</div>
+</div>"""
+        body = ""
+        for rec in rows:
+            age_html = (
+                f'{rec["age"]} <span class="kt-warn" title="Outside the expected {BANDS[prog][0]}–{BANDS[prog][1]} range">⚠️</span>'
+                if rec["out_of_range"] else
+                (str(rec["age"]) if rec["age"] is not None else '<span class="kt-nodob">—</span>')
+            )
+            body += f"<tr><td>{rec['name']}</td><td class='kt-ticket'>{rec['ticket']}</td><td class='kt-age'>{age_html}</td></tr>"
+        return f"""
+<div class="kt-card">
+  <div class="kt-head">
+    <span class="kt-emoji">{emoji}</span>
+    <h2 class="kt-name">{label}</h2>
+    <span class="kt-count">{len(rows)}</span>
+  </div>
+  <table class="kt-table">
+    <thead><tr><th>Name</th><th>Ticket Type</th><th>Age</th></tr></thead>
+    <tbody>{body}</tbody>
+  </table>
+</div>"""
+
+    # ── Capacity Risk cards (Kids/Teens × W1/W2) — mirrors main dashboard ──
+    def cap_card_html(emoji, name, week_label, confirmed, unassigned_count, cap_tuple):
+        level, status, subtitle = cap_tuple
+        worst = confirmed + unassigned_count
+        overflow = worst - CAPACITY
+        if overflow > 0:
+            overflow_html = f'<strong style="color:#f87171">+{overflow}</strong>'
+        else:
+            color = "34d399" if level == "green" else "fbbf24"
+            overflow_html = f'<strong style="color:#{color}">{CAPACITY - worst} spots</strong>'
+        note_label = "Overflow risk:" if overflow > 0 else "Buffer:"
+        TRACK = 82
+        conf_pct  = min((confirmed / CAPACITY) * TRACK, 100)
+        unass_pct = min((unassigned_count / CAPACITY) * TRACK, 100 - conf_pct)
+        return f"""
+<div class="cap-card risk-{level}">
+  <div class="cap-header">
+    <div class="cap-title">{emoji} {name}</div>
+    <div class="cap-week-badge">{week_label}</div>
+  </div>
+  <div class="traffic-light">
+    <div class="tl-dot"></div>
+    <div class="tl-status">{status}</div>
+    <div class="tl-sub">{subtitle}</div>
+  </div>
+  <div class="cap-bar-wrap">
+    <div class="cap-bar-labels"><span>0</span><span>Capacity</span></div>
+    <div class="cap-bar-track">
+      <div class="cap-bar-confirmed"  style="width:{conf_pct:.1f}%"></div>
+      <div class="cap-bar-unassigned" style="left:{conf_pct:.1f}%;width:{unass_pct:.1f}%"></div>
+      <div class="cap-bar-marker"     style="left:{TRACK}%"></div>
+    </div>
+  </div>
+  <div class="cap-numbers">
+    <div class="cap-num-item"><div class="cap-num-val">{confirmed}</div><div class="cap-num-label">Confirmed</div></div>
+    <div class="cap-num-item"><div class="cap-num-val">{unassigned_count}</div><div class="cap-num-label">No Week Sel.</div></div>
+    <div class="cap-num-item worst"><div class="cap-num-val">{worst}</div><div class="cap-num-label">Worst Case</div></div>
+  </div>
+  <div class="cap-capacity-note">Capacity: <strong>{CAPACITY}</strong> · {note_label} {overflow_html}</div>
+</div>"""
+
+    cap_grid = f"""
+<div class="cap-grid">
+  {cap_card_html("🧒", "Kids",  "Week 1", kids["w1"],  kids["unassigned"],  cap["kids_w1"])}
+  {cap_card_html("🧒", "Kids",  "Week 2", kids["w2"],  kids["unassigned"],  cap["kids_w2"])}
+  {cap_card_html("🧑", "Teens", "Week 1", teens["w1"], teens["unassigned"], cap["teens_w1"])}
+  {cap_card_html("🧑", "Teens", "Week 2", teens["w2"], teens["unassigned"], cap["teens_w2"])}
+</div>"""
+
+    w1_grid = f"""
+<div class="kt-week-grid">
+  {render_table("kids",  "w1", "🧒", "Kids")}
+  {render_table("teens", "w1", "🧑", "Teens")}
+</div>"""
+
+    w2_grid = f"""
+<div class="kt-week-grid">
+  {render_table("kids",  "w2", "🧒", "Kids")}
+  {render_table("teens", "w2", "🧑", "Teens")}
+</div>"""
+
+    # Unassigned-week row only shown if anyone has no week selected
+    has_unass = bool(buckets["kids"]["unass"]) or bool(buckets["teens"]["unass"])
+    unass_section = ""
+    if has_unass:
+        unass_section = f"""
+<div class="kt-section-label">No Week Selected</div>
+<div class="kt-week-grid">
+  {render_table("kids",  "unass", "🧒", "Kids")}
+  {render_table("teens", "unass", "🧑", "Teens")}
+</div>"""
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Kids &amp; Teens — MVU 2026</title>
+<style>
+*,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
+:root{{--bg:#0b0a1a;--card:#14122a;--card-border:#2a2650;--gold:#d4a843;--purple:#7c3aed;--purple-light:#a78bfa;--text:#e8e4f0;--text-dim:#9a93b0;--green:#34d399;--red:#f87171;--orange:#fb923c}}
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:32px 20px}}
+.container{{max-width:1200px;margin:0 auto}}
+header{{text-align:center;margin-bottom:30px}}
+h1{{font-size:1.9rem;font-weight:800;background:linear-gradient(135deg,var(--gold),var(--purple-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.02em}}
+header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
+.timestamp{{display:inline-block;margin-top:10px;padding:4px 14px;border-radius:20px;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);font-size:.8rem;color:var(--purple-light)}}
+
+/* hero KPI strip — mirrors the main dashboard */
+.hero-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:28px}}
+.hero-card{{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:22px;position:relative;overflow:hidden}}
+.hero-card::before{{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:16px 16px 0 0}}
+.hero-card.valid::before{{background:linear-gradient(90deg,var(--green),#059669)}}
+.hero-card.paid::before{{background:linear-gradient(90deg,var(--purple-light),var(--purple))}}
+.hero-card.refund::before{{background:linear-gradient(90deg,var(--red),#dc2626)}}
+.hero-card.unassigned::before{{background:linear-gradient(90deg,var(--orange),#ea580c)}}
+.hero-icon{{font-size:1.6rem;margin-bottom:6px}}
+.hero-label{{font-size:.8rem;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:.06em}}
+.hero-value{{font-size:2.4rem;font-weight:800;line-height:1.1;margin:4px 0}}
+.hero-card.valid .hero-value{{color:var(--green)}}
+.hero-card.paid .hero-value{{color:var(--purple-light)}}
+.hero-card.refund .hero-value{{color:var(--red)}}
+.hero-card.unassigned .hero-value{{color:var(--orange)}}
+.hero-sub{{display:flex;gap:16px;margin-top:8px;font-size:.78rem;color:var(--text-dim)}}
+.hero-sub span{{display:flex;align-items:center;gap:4px}}
+.hero-sub .num{{font-weight:700;color:var(--text)}}
+
+.kt-section-label{{font-size:1.1rem;font-weight:700;color:var(--gold);margin:8px 0 14px;text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:8px}}
+.kt-section-label::after{{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(212,168,67,.5),transparent)}}
+
+/* capacity-risk cards (mirrors main dashboard) */
+.cap-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:28px}}
+.cap-card{{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:22px;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s}}
+.cap-card:hover{{transform:translateY(-3px)}}
+.cap-card::before{{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:16px 16px 0 0}}
+.cap-card.risk-green::before{{background:linear-gradient(90deg,#34d399,#059669)}}
+.cap-card.risk-yellow::before{{background:linear-gradient(90deg,#fbbf24,#d97706)}}
+.cap-card.risk-red::before{{background:linear-gradient(90deg,#f87171,#dc2626)}}
+.cap-header{{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}}
+.cap-title{{font-size:.9rem;font-weight:700;color:var(--text);letter-spacing:.03em}}
+.cap-week-badge{{font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.05em;text-transform:uppercase}}
+.cap-card.risk-green .cap-week-badge{{background:rgba(52,211,153,.15);color:#34d399;border:1px solid rgba(52,211,153,.3)}}
+.cap-card.risk-yellow .cap-week-badge{{background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3)}}
+.cap-card.risk-red .cap-week-badge{{background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3)}}
+.traffic-light{{display:flex;align-items:center;gap:10px;margin-bottom:16px}}
+.tl-dot{{width:14px;height:14px;border-radius:50%;flex-shrink:0;box-shadow:0 0 8px currentColor}}
+.risk-green .tl-dot{{background:#34d399;color:#34d399}}
+.risk-yellow .tl-dot{{background:#fbbf24;color:#fbbf24;animation:pulse-yellow 2s ease-in-out infinite}}
+.risk-red .tl-dot{{background:#f87171;color:#f87171;animation:pulse-red 1.4s ease-in-out infinite}}
+@keyframes pulse-yellow{{0%,100%{{box-shadow:0 0 6px #fbbf24}}50%{{box-shadow:0 0 16px #fbbf24}}}}
+@keyframes pulse-red{{0%,100%{{box-shadow:0 0 6px #f87171}}50%{{box-shadow:0 0 20px #f87171}}}}
+.tl-status{{font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em}}
+.risk-green .tl-status{{color:#34d399}}
+.risk-yellow .tl-status{{color:#fbbf24}}
+.risk-red .tl-status{{color:#f87171}}
+.tl-sub{{font-size:.75rem;color:var(--text-dim);margin-left:auto}}
+.cap-bar-wrap{{margin-bottom:14px}}
+.cap-bar-labels{{display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-dim);margin-bottom:5px}}
+.cap-bar-track{{width:100%;height:12px;border-radius:6px;background:rgba(255,255,255,.06);position:relative;overflow:visible}}
+.cap-bar-confirmed{{height:100%;border-radius:6px 0 0 6px;position:absolute;left:0;top:0}}
+.cap-bar-unassigned{{height:100%;position:absolute;top:0;background-image:repeating-linear-gradient(45deg,transparent,transparent 3px,rgba(0,0,0,.25) 3px,rgba(0,0,0,.25) 6px)}}
+.risk-green .cap-bar-confirmed{{background:linear-gradient(90deg,#34d399,#059669)}}
+.risk-green .cap-bar-unassigned{{background-color:rgba(52,211,153,.35)}}
+.risk-yellow .cap-bar-confirmed{{background:linear-gradient(90deg,#fbbf24,#d97706)}}
+.risk-yellow .cap-bar-unassigned{{background-color:rgba(251,191,36,.35)}}
+.risk-red .cap-bar-confirmed{{background:linear-gradient(90deg,#f87171,#dc2626)}}
+.risk-red .cap-bar-unassigned{{background-color:rgba(248,113,113,.35)}}
+.cap-bar-marker{{position:absolute;top:-4px;height:20px;width:2px;background:var(--gold);border-radius:2px;z-index:2}}
+.cap-bar-marker::after{{content:'{CAPACITY}';position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:.65rem;color:var(--gold);font-weight:700;white-space:nowrap}}
+.cap-numbers{{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center}}
+.cap-num-item{{padding:6px 2px;border-radius:8px;background:rgba(255,255,255,.03)}}
+.cap-num-val{{font-size:1.2rem;font-weight:800;color:var(--text)}}
+.cap-num-label{{font-size:.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin-top:1px}}
+.cap-num-item.worst .cap-num-val{{font-size:1.35rem}}
+.risk-green .cap-num-item.worst .cap-num-val{{color:#34d399}}
+.risk-yellow .cap-num-item.worst .cap-num-val{{color:#fbbf24}}
+.risk-red .cap-num-item.worst .cap-num-val{{color:#f87171}}
+.cap-capacity-note{{text-align:center;font-size:.72rem;color:var(--text-dim);margin-top:10px}}
+.cap-capacity-note strong{{color:var(--gold)}}
+
+.kt-week-grid{{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:28px}}
+@media (max-width:760px){{.kt-week-grid{{grid-template-columns:1fr}}}}
+
+.kt-card{{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:20px 22px;position:relative;overflow:hidden}}
+.kt-card::before{{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--purple-light),var(--gold));border-radius:16px 16px 0 0}}
+.kt-head{{display:flex;align-items:center;gap:10px;margin-bottom:14px}}
+.kt-emoji{{font-size:1.5rem;line-height:1}}
+.kt-name{{font-size:1.2rem;font-weight:800;color:var(--text);flex:1;letter-spacing:-.01em}}
+.kt-count{{font-size:1.5rem;font-weight:800;color:var(--gold);line-height:1;font-variant-numeric:tabular-nums}}
+
+.kt-table{{width:100%;border-collapse:collapse;font-size:.86rem}}
+.kt-table th{{text-align:left;padding:8px 10px;color:var(--text-dim);font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.015);font-weight:600}}
+.kt-table th.kt-age, .kt-table td.kt-age{{text-align:right;width:62px;white-space:nowrap}}
+.kt-table td{{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.03)}}
+.kt-table tbody tr:last-child td{{border-bottom:none}}
+.kt-table tbody tr:hover td{{background:rgba(255,255,255,.02)}}
+.kt-table td.kt-ticket{{color:var(--purple-light);font-size:.8rem}}
+.kt-warn{{cursor:help;margin-left:2px}}
+.kt-nodob{{color:var(--text-dim)}}
+.kt-empty{{text-align:center;padding:24px;color:var(--text-dim);font-size:.86rem;font-style:italic;border-top:1px solid rgba(255,255,255,.06)}}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <h1>Kids &amp; Teens</h1>
+  <p>Mindvalley U 2026 — Tallinn, Estonia</p>
+  <div class="timestamp">Data snapshot: {now_str}</div>
+</header>
+
+<div class="hero-grid">
+  <div class="hero-card valid">
+    <div class="hero-icon">✅</div>
+    <div class="hero-label">Valid Tickets</div>
+    <div class="hero-value">{hero['valid_total']}</div>
+    <div class="hero-sub">
+      <span>7d: <span class="num">{hero['valid_7d']}</span></span>
+      <span>24h: <span class="num">{hero['valid_24h']}</span></span>
+    </div>
+  </div>
+  <div class="hero-card paid">
+    <div class="hero-icon">💳</div>
+    <div class="hero-label">Paid Tickets</div>
+    <div class="hero-value">{hero['paid_total']}</div>
+    <div class="hero-sub">
+      <span>7d: <span class="num">{hero['paid_7d']}</span></span>
+      <span>24h: <span class="num">{hero['paid_24h']}</span></span>
+    </div>
+  </div>
+  <div class="hero-card refund">
+    <div class="hero-icon">🔄</div>
+    <div class="hero-label">Refunded Tickets</div>
+    <div class="hero-value">{hero['refund_total']}</div>
+    <div class="hero-sub">
+      <span>7d: <span class="num">{hero['refund_7d']}</span></span>
+      <span>24h: <span class="num">{hero['refund_24h']}</span></span>
+    </div>
+  </div>
+  <div class="hero-card unassigned">
+    <div class="hero-icon">🔔</div>
+    <div class="hero-label">Unassigned Tickets</div>
+    <div class="hero-value">{hero['unassigned']}</div>
+  </div>
+</div>
+
+<div class="kt-section-label">⚠️ Capacity Risk <span style="font-size:.75rem;font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-left:8px">Cap. {CAPACITY} pax / category / week</span></div>
+{cap_grid}
+
+<div class="kt-section-label">Week 1 · July 20 – 26</div>
+{w1_grid}
+
+<div class="kt-section-label">Week 2 · July 27 – August 2</div>
+{w2_grid}
+{unass_section}
+
+</div>
+</body>
+</html>"""
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("🔐 Authenticating...")
@@ -1588,125 +1963,6 @@ if __name__ == "__main__":
     print("📥 Fetching MVU 2026 registrations...")
     regs = fetch_all(token, EVENT_ID)
     print(f"   Total records: {len(regs)}")
-
-    # ── TEMPORARY DIAGNOSTIC: Tribe Speakers — are they registered? ──
-    import unicodedata as _ud
-    TRIBE_SPEAKERS = [
-        ("Toomas Laigu", "toomaslaigu@gmail.com"),
-        ("Geir Bernhardsen", "geirbernhardsen@mail.com"),
-        ("Marisa Murray", "murray.marisa@gmail.com"),
-        ("Karol Pittner", "moderatornacestach@gmail.com"),
-        ("Lucia Franchi", "luciavittoriafranchi@gmail.com"),
-        ("Germán Javier Gholami Torres-Pardo", "germangholami@gmail.com"),
-        ("Paul Gotel", "paulgotelweb@gmail.com"),
-        ("Kevin van Hagen", "vanhagenpt@gmail.com"),
-        ("Marie-Laure WILL", "transformation@marielaurewill.com"),
-        ("Tista S Ghosh, MD, MPH", "tista.s.ghosh@gmail.com"),
-        ("Laura Quirke", "laura@lightconnectors.com"),
-        ("Lis Suppo", "lis@lissuppo.com"),
-        ("Tanja Sipilä", "tanja@tanjasipila.com"),
-        ("Louise Jones", "louisejones20@me.com"),
-        ("Nawres Chikhaoui", "chikhaouinawres6@gmail.com"),
-        ("Michal Bardavid", "michal.bardavid@gmail.com"),
-        ("Cloud Kohinoor", "cloudkohinoor@gmail.com"),
-        ("Shashi Solluna", "shashisolluna@gmail.com"),
-        ("Louise Evans", "louise@the5chairs.com"),
-        ("Olya Rostov", "hi@olyarostov.com"),
-        ("Erwin Benedict Sawit Valencia", "erwinbvalencia@gmail.com"),
-        ("Rola Diab", "rola@alorsolutions.com"),
-        ("Letizia Silvestri", "heal@altha.com"),
-        ("Rachel Slawson", "partnerships@saltyrachel.com"),
-        ("Marina Vorobyeva", "mvorobyeva84@gmail.com"),
-        ("Rui Vas", "rui.vas10x@gmail.com"),
-        ("Michelle Maree", "michelle@thenomadescape.com"),
-        ("Meagan Desart", "meagan0366@hotmail.com"),
-        ("Adaku Linda Mbagwu", "adaku@healedhero.com"),
-        ("Karms Fung", "karmsfung@gmail.com"),
-        ("Cédric Lignier", "nomadnumbers@gmail.com"),
-        ("Cecilie Stabell Eriksen", "contact@ceciliestabell.com"),
-        ("SHARRON LOWE", "sharron@loweassociates.com"),
-        ("Julia Titova", "info@juliatitova.com"),
-        ("Marcel Wijermars", "marcel@amsterdamfoundersclub.com"),
-        ("Mia Lovequest (Rosenzweig)", "mia@mialovequest.com"),
-        ("Francesca Facio Crespo", "franfacio@gmail.com"),
-        ("Bruce Muzik", "brucemuzik@gmail.com"),
-        ("Amy White", "amy@thewhiteeditorial.com"),
-        ("Kitty Heusschen", "kittyheusschen@gmail.com"),
-        ("Melanie Warner", "melanie@mydefiningmoments.com"),
-        ("Dr Nima Mahmoodi", "dr.nima.mahmoodi@gmail.com"),
-        ("Alexander Lange", "alex.lange.7@gmail.com"),
-        ("Gia Lulic", "gialulic@gmail.com"),
-        ("Maria Conceicao", "maria@mariacristinafoundation.org"),
-        ("Chiara Bransi", ""),
-        ("Safwaan Mohammed", ""),
-        ("Iris Wagner", ""),
-        ("Louie Blake", ""),
-        ("Simon Salter", ""),
-        ("Nora Cavani", ""),
-        ("Jimmy Naraine", ""),
-        ("Nick Mennell", ""),
-        ("Chiara King", ""),
-    ]
-    def _norm(s):
-        s = _ud.normalize('NFKD', s or '').encode('ASCII','ignore').decode()
-        return ''.join(c for c in s.lower() if c.isalnum() or c==' ').strip()
-    def _rec_emails(r):
-        out = []
-        for src in (r.get('properties') or {}, r.get('billingAddress') or {}):
-            e = (src.get('email') or '').strip().lower()
-            if e: out.append(e)
-        return out
-    def _rec_name(r):
-        props = r.get('properties') or {}
-        n = f"{(props.get('firstName') or '').strip()} {(props.get('lastName') or '').strip()}".strip()
-        if n: return n
-        bill = r.get('billingAddress') or {}
-        return f"{(bill.get('firstName') or '').strip()} {(bill.get('lastName') or '').strip()}".strip()
-
-    # Build lookup tables on all NON-refunded records (include comped — speakers may be comped)
-    _candidates = [r for r in regs if (r.get('paymentStatus') or '').lower() != 'refunded']
-    by_email = {}
-    by_name_norm = {}
-    for r in _candidates:
-        for e in _rec_emails(r):
-            by_email.setdefault(e, []).append(r)
-        n = _norm(_rec_name(r))
-        if n:
-            by_name_norm.setdefault(n, []).append(r)
-
-    print(f"\n🔎 [diag] Tribe Speakers vs registrations ({len(TRIBE_SPEAKERS)} speakers, {len(_candidates)} non-refunded records)")
-    matched, unmatched = 0, 0
-    for sp_name, sp_email in TRIBE_SPEAKERS:
-        sp_email_lc = sp_email.strip().lower()
-        sp_name_norm = _norm(sp_name)
-        match_recs = []
-        match_via = None
-        if sp_email_lc and sp_email_lc in by_email:
-            match_recs = by_email[sp_email_lc]; match_via = 'email'
-        else:
-            # Fallback: name normalization. Try exact normalized match first,
-            # then partial (all target tokens appear in registered name).
-            if sp_name_norm in by_name_norm:
-                match_recs = by_name_norm[sp_name_norm]; match_via = 'name (exact)'
-            else:
-                target_tokens = set(t for t in sp_name_norm.split() if len(t) > 2)
-                for n_norm, recs in by_name_norm.items():
-                    cand_tokens = set(n_norm.split())
-                    # require at least 2 token overlap (or all if fewer than 2 in target)
-                    needed = min(2, len(target_tokens))
-                    if needed > 0 and len(target_tokens & cand_tokens) >= needed:
-                        match_recs.extend(recs); match_via = 'name (partial)'
-        if match_recs:
-            matched += 1
-            for r in match_recs[:3]:
-                print(f"  ✓ {sp_name!r}  ({sp_email or '<no email>'})  via {match_via} → {_rec_name(r)!r} · {r.get('ticketName')!r} · {r.get('paymentStatus')}")
-            if len(match_recs) > 3:
-                print(f"     … +{len(match_recs)-3} more matches")
-        else:
-            unmatched += 1
-            print(f"  ✗ {sp_name!r}  ({sp_email or '<no email>'})  → NOT FOUND")
-    print(f"  Summary: {matched} matched · {unmatched} not found\n")
-    # ── END DIAGNOSTIC ──
 
     print(f"📥 Fetching MVU 2025 registrations (event {EVENT_ID_2025}) for YoY...")
     try:
@@ -1745,6 +2001,13 @@ if __name__ == "__main__":
         f.write(render_special_guests_page(sg_data))
     sg_total = sum(len(v) for v in sg_data.values())
     print(f"   Special Guests: {sg_total} registrations -> {sg_path}")
+
+    # Kids & Teens page — one card per program × week, ages ascending,
+    # 'Both Weeks' attendees appear in both W1 and W2 lists.
+    kt_path = "event-dashboards/mvu-2026/kids-teens.html"
+    with open(kt_path, "w", encoding="utf-8") as f:
+        f.write(render_kids_teens_page(regs, hero, kids, teens, cap))
+    print(f"   Kids & Teens     -> {kt_path}")
 
     # Generate the standalone refunds analysis page (not linked from main dashboard)
     refunds_analysis_path = "event-dashboards/mvu-2026/refunds-analysis.html"

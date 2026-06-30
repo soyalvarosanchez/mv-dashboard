@@ -27,6 +27,13 @@
       "icon": "⭐",
       "path": "event-dashboards/mvu-2026/special-guests.html",
       "description": ""
+    },
+    {
+      "id": "mvu-2026-kids-teens",
+      "label": "Kids & Teens",
+      "icon": "🎒",
+      "path": "event-dashboards/mvu-2026/kids-teens.html",
+      "description": ""
     }
   ]
 }

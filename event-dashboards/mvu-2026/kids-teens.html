@@ -13,24 +13,18 @@ h1{font-size:1.9rem;font-weight:800;background:linear-gradient(135deg,var(--gold
 header p{color:var(--text-dim);margin-top:6px;font-size:.9rem}
 .timestamp{display:inline-block;margin-top:10px;padding:4px 14px;border-radius:20px;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);font-size:.8rem;color:var(--purple-light)}
 
-/* hero KPI strip — mirrors the main dashboard */
-.hero-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:28px}
-.hero-card{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:22px;position:relative;overflow:hidden}
-.hero-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:16px 16px 0 0}
-.hero-card.valid::before{background:linear-gradient(90deg,var(--green),#059669)}
-.hero-card.paid::before{background:linear-gradient(90deg,var(--purple-light),var(--purple))}
-.hero-card.refund::before{background:linear-gradient(90deg,var(--red),#dc2626)}
-.hero-card.unassigned::before{background:linear-gradient(90deg,var(--orange),#ea580c)}
-.hero-icon{font-size:1.6rem;margin-bottom:6px}
-.hero-label{font-size:.8rem;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:.06em}
-.hero-value{font-size:2.4rem;font-weight:800;line-height:1.1;margin:4px 0}
-.hero-card.valid .hero-value{color:var(--green)}
-.hero-card.paid .hero-value{color:var(--purple-light)}
-.hero-card.refund .hero-value{color:var(--red)}
-.hero-card.unassigned .hero-value{color:var(--orange)}
-.hero-sub{display:flex;gap:16px;margin-top:8px;font-size:.78rem;color:var(--text-dim)}
-.hero-sub span{display:flex;align-items:center;gap:4px}
-.hero-sub .num{font-weight:700;color:var(--text)}
+/* program stats — Kids & Teens with W1 / W2 / No Week breakdown */
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:28px}
+.cat-card{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:22px;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s}
+.cat-card:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(212,168,67,.1)}
+.cat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold),var(--purple));border-radius:16px 16px 0 0}
+.cat-icon{font-size:1.6rem;margin-bottom:6px}
+.cat-label{font-size:.82rem;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:.06em}
+.cat-value{font-size:2.4rem;font-weight:800;color:var(--gold);line-height:1.1;margin:4px 0 12px}
+.cat-breakdown{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.cat-breakdown .item{text-align:center;padding:6px 0;border-radius:8px;background:rgba(255,255,255,.03)}
+.cat-breakdown .item-val{font-size:1.15rem;font-weight:700;color:var(--text)}
+.cat-breakdown .item-label{font-size:.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin-top:1px}
 
 .kt-section-label{font-size:1.1rem;font-weight:700;color:var(--gold);margin:8px 0 14px;text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:8px}
 .kt-section-label::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(212,168,67,.5),transparent)}
@@ -112,41 +106,29 @@ header p{color:var(--text-dim);margin-top:6px;font-size:.9rem}
 <header>
   <h1>Kids &amp; Teens</h1>
   <p>Mindvalley U 2026 — Tallinn, Estonia</p>
-  <div class="timestamp">Data snapshot: June 30, 2026 at 07:10 UTC</div>
+  <div class="timestamp">Data snapshot: June 30, 2026 at 07:19 UTC</div>
 </header>
 
-<div class="hero-grid">
-  <div class="hero-card valid">
-    <div class="hero-icon">✅</div>
-    <div class="hero-label">Valid Tickets</div>
-    <div class="hero-value">1310</div>
-    <div class="hero-sub">
-      <span>7d: <span class="num">55</span></span>
-      <span>24h: <span class="num">13</span></span>
+<div class="cat-grid">
+  <div class="cat-card">
+    <div class="cat-icon">🧒</div>
+    <div class="cat-label">Kids (6-12)</div>
+    <div class="cat-value">87</div>
+    <div class="cat-breakdown">
+      <div class="item"><div class="item-val">59</div><div class="item-label">Week 1</div></div>
+      <div class="item"><div class="item-val">57</div><div class="item-label">Week 2</div></div>
+      <div class="item"><div class="item-val">12</div><div class="item-label">No Week Selected</div></div>
     </div>
   </div>
-  <div class="hero-card paid">
-    <div class="hero-icon">💳</div>
-    <div class="hero-label">Paid Tickets</div>
-    <div class="hero-value">1028</div>
-    <div class="hero-sub">
-      <span>7d: <span class="num">42</span></span>
-      <span>24h: <span class="num">12</span></span>
+  <div class="cat-card">
+    <div class="cat-icon">🧑</div>
+    <div class="cat-label">Teens (13-17)</div>
+    <div class="cat-value">81</div>
+    <div class="cat-breakdown">
+      <div class="item"><div class="item-val">52</div><div class="item-label">Week 1</div></div>
+      <div class="item"><div class="item-val">52</div><div class="item-label">Week 2</div></div>
+      <div class="item"><div class="item-val">16</div><div class="item-label">No Week Selected</div></div>
     </div>
-  </div>
-  <div class="hero-card refund">
-    <div class="hero-icon">🔄</div>
-    <div class="hero-label">Refunded Tickets</div>
-    <div class="hero-value">383</div>
-    <div class="hero-sub">
-      <span>7d: <span class="num">3</span></span>
-      <span>24h: <span class="num">0</span></span>
-    </div>
-  </div>
-  <div class="hero-card unassigned">
-    <div class="hero-icon">🔔</div>
-    <div class="hero-label">Unassigned Tickets</div>
-    <div class="hero-value">49</div>
   </div>
 </div>
 

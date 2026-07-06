@@ -1659,24 +1659,37 @@ def render_kids_teens_page(regs, kids, teens, cap):
 
     BANDS = {"kids": (6, 12), "teens": (13, 17)}
 
+    import unicodedata as _ud
+    def _norm(s):
+        s = _ud.normalize('NFKD', s or '').encode('ASCII','ignore').decode()
+        return ' '.join(s.lower().split())
+
     def row(r, program):
         age = age_at_event(r)
         lo, hi = BANDS[program]
         out_of_range = (age is not None) and (age < lo or age > hi)
         p_name, p_email = get_purchaser(r)
-        # Suppress sub-line when purchaser is the attendee themselves
-        # (matched by email — the reliable identifier).
-        att_email = ((r.get("properties") or {}).get("email") or "").strip().lower()
-        if p_email and p_email.lower() == att_email:
-            p_name = p_email = ""
+        # Data-quality flag: on a Kids & Teens page, a kid's attendee data
+        # should NEVER match the purchaser (kids can't self-register). If
+        # name AND email both match, the parent likely typed their own info
+        # into the attendee fields by mistake — worth verifying with CS.
+        props = r.get("properties") or {}
+        att_name  = f"{(props.get('firstName') or '').strip()} {(props.get('lastName') or '').strip()}".strip()
+        att_email = (props.get("email") or "").strip()
+        same_as_attendee = bool(
+            p_email and p_name
+            and _norm(p_email) == _norm(att_email)
+            and _norm(p_name)  == _norm(att_name)
+        )
         return {
-            "name":            get_attendee_name(r),
-            "ticket":          r.get("ticketName") or "",
-            "age":             age,
-            "out_of_range":    out_of_range,
-            "week":            get_week(r),
-            "purchaser_name":  p_name,
-            "purchaser_email": p_email,
+            "name":              get_attendee_name(r),
+            "ticket":            r.get("ticketName") or "",
+            "age":               age,
+            "out_of_range":      out_of_range,
+            "week":              get_week(r),
+            "purchaser_name":    p_name,
+            "purchaser_email":   p_email,
+            "same_as_attendee":  same_as_attendee,
         }
 
     buckets = {
@@ -1724,15 +1737,25 @@ def render_kids_teens_page(regs, kids, teens, cap):
                 if rec["out_of_range"] else
                 (str(rec["age"]) if rec["age"] is not None else '<span class="kt-nodob">—</span>')
             )
-            # Purchaser sub-line ("Order Placed By" in Bizzabo). Rendered as a
-            # small muted line below the attendee name. Hidden when purchaser
-            # is the attendee themselves (already suppressed upstream in row()).
+            # Purchaser sub-line ("Order Placed By" in Bizzabo). Always shown
+            # when present. When purchaser data matches the attendee (name AND
+            # email), the line switches to amber with a warning label — on a
+            # Kids & Teens page this almost certainly means the parent typed
+            # their own info into the attendee fields by mistake.
             purchaser_html = ""
             if rec["purchaser_name"] or rec["purchaser_email"]:
                 bits = []
                 if rec["purchaser_name"]:  bits.append(rec["purchaser_name"])
                 if rec["purchaser_email"]: bits.append(f'<a href="mailto:{rec["purchaser_email"]}">{rec["purchaser_email"]}</a>')
-                purchaser_html = f'<div class="kt-purchaser">↳ Purchased by {" · ".join(bits)}</div>'
+                info = " · ".join(bits)
+                if rec["same_as_attendee"]:
+                    purchaser_html = (
+                        f'<div class="kt-purchaser kt-purchaser-warn" '
+                        f'title="Attendee data matches purchaser — parent likely put their own info in the attendee fields by mistake. Verify with CS.">'
+                        f'↳ ⚠️ Same as attendee — verify: {info}</div>'
+                    )
+                else:
+                    purchaser_html = f'<div class="kt-purchaser">↳ Purchased by {info}</div>'
             body += f"<tr><td>{rec['name']}{purchaser_html}</td><td class='kt-ticket'>{rec['ticket']}</td><td class='kt-age'>{age_html}</td></tr>"
         return f"""
 <div class="kt-card">
@@ -1922,6 +1945,9 @@ header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
 .kt-purchaser{{font-size:.72rem;color:var(--text-dim);margin-top:2px;padding-left:8px;line-height:1.35}}
 .kt-purchaser a{{color:var(--purple-light);text-decoration:none}}
 .kt-purchaser a:hover{{text-decoration:underline}}
+.kt-purchaser-warn{{color:#fbbf24;font-weight:600;cursor:help}}
+.kt-purchaser-warn a{{color:#fbbf24;text-decoration:underline}}
+.kt-purchaser-warn a:hover{{color:#fcd34d}}
 .kt-empty{{text-align:center;padding:24px;color:var(--text-dim);font-size:.86rem;font-style:italic;border-top:1px solid rgba(255,255,255,.06)}}
 </style>
 </head>

@@ -135,6 +135,19 @@ def get_attendee_name(r):
     buyer = f"{b_first} {b_last}".strip()
     return f"{buyer} (Unassigned)" if buyer else "(Unassigned)"
 
+# ── Purchaser helper (Bizzabo "Order Placed By" fields) ──────────────────────
+def get_purchaser(r):
+    """Return (name, email) for the person who placed the order — Bizzabo's
+    'Order Placed By (Name)' / 'Order Placed By (Email)' columns. Sourced
+    from `billingAddress` which is the buyer info at order level.
+    Returns ('', '') if not present."""
+    bill = r.get("billingAddress") or {}
+    first = (bill.get("firstName") or "").strip()
+    last  = (bill.get("lastName")  or "").strip()
+    name  = f"{first} {last}".strip()
+    email = (bill.get("email") or "").strip()
+    return name, email
+
 # ── Week assignment helper ────────────────────────────────────────────────────
 def get_week_full(reg):
     """Returns the raw 'when_are_you_joining' form value verbatim, e.g.
@@ -1650,12 +1663,20 @@ def render_kids_teens_page(regs, kids, teens, cap):
         age = age_at_event(r)
         lo, hi = BANDS[program]
         out_of_range = (age is not None) and (age < lo or age > hi)
+        p_name, p_email = get_purchaser(r)
+        # Suppress sub-line when purchaser is the attendee themselves
+        # (matched by email — the reliable identifier).
+        att_email = ((r.get("properties") or {}).get("email") or "").strip().lower()
+        if p_email and p_email.lower() == att_email:
+            p_name = p_email = ""
         return {
-            "name":         get_attendee_name(r),
-            "ticket":       r.get("ticketName") or "",
-            "age":          age,
-            "out_of_range": out_of_range,
-            "week":         get_week(r),
+            "name":            get_attendee_name(r),
+            "ticket":          r.get("ticketName") or "",
+            "age":             age,
+            "out_of_range":    out_of_range,
+            "week":            get_week(r),
+            "purchaser_name":  p_name,
+            "purchaser_email": p_email,
         }
 
     buckets = {
@@ -1703,7 +1724,16 @@ def render_kids_teens_page(regs, kids, teens, cap):
                 if rec["out_of_range"] else
                 (str(rec["age"]) if rec["age"] is not None else '<span class="kt-nodob">—</span>')
             )
-            body += f"<tr><td>{rec['name']}</td><td class='kt-ticket'>{rec['ticket']}</td><td class='kt-age'>{age_html}</td></tr>"
+            # Purchaser sub-line ("Order Placed By" in Bizzabo). Rendered as a
+            # small muted line below the attendee name. Hidden when purchaser
+            # is the attendee themselves (already suppressed upstream in row()).
+            purchaser_html = ""
+            if rec["purchaser_name"] or rec["purchaser_email"]:
+                bits = []
+                if rec["purchaser_name"]:  bits.append(rec["purchaser_name"])
+                if rec["purchaser_email"]: bits.append(f'<a href="mailto:{rec["purchaser_email"]}">{rec["purchaser_email"]}</a>')
+                purchaser_html = f'<div class="kt-purchaser">↳ Purchased by {" · ".join(bits)}</div>'
+            body += f"<tr><td>{rec['name']}{purchaser_html}</td><td class='kt-ticket'>{rec['ticket']}</td><td class='kt-age'>{age_html}</td></tr>"
         return f"""
 <div class="kt-card">
   <div class="kt-head">
@@ -1889,6 +1919,9 @@ header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
 .kt-table td.kt-ticket{{color:var(--purple-light);font-size:.8rem}}
 .kt-warn{{cursor:help;margin-left:2px}}
 .kt-nodob{{color:var(--text-dim)}}
+.kt-purchaser{{font-size:.72rem;color:var(--text-dim);margin-top:2px;padding-left:8px;line-height:1.35}}
+.kt-purchaser a{{color:var(--purple-light);text-decoration:none}}
+.kt-purchaser a:hover{{text-decoration:underline}}
 .kt-empty{{text-align:center;padding:24px;color:var(--text-dim);font-size:.86rem;font-style:italic;border-top:1px solid rgba(255,255,255,.06)}}
 </style>
 </head>

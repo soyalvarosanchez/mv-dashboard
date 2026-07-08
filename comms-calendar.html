@@ -833,15 +833,6 @@ function buildFilters() {
         ${priorities.map(p => `<span class="pill" data-filter="priority" data-value="${p}" style="--pill-color:${PRIORITY_COLORS[p]}">${p}</span>`).join('')}
       </div>
     </div>
-    <div class="filter-group">
-      <label>Audience</label>
-      <div class="filter-pills">
-        ${audiences.map(a => {
-          const info = getAudienceInfo(a);
-          return `<span class="pill" data-filter="audience" data-value="${a}">${info.label}</span>`;
-        }).join('')}
-      </div>
-    </div>
   `;
 
   bar.querySelectorAll('.pill').forEach(pill => {
@@ -921,8 +912,9 @@ function renderKPIs() {
       <div class="kpi-label">High Priority</div>
     </div>
     <div class="kpi-card" style="border-top: 2px solid var(--gold)">
-      <div class="kpi-value gold" style="font-size:1rem;font-weight:600">${upcoming ? upcoming.Email_Name.substring(0, 25) : '—'}</div>
-      <div class="kpi-label">${upcoming ? upcoming.Proposed_Send_Date : 'No upcoming'}</div>
+      <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:1px;color:var(--gold);font-weight:700;margin-bottom:4px">Next Upcoming</div>
+      <div class="kpi-value gold" style="font-size:0.95rem;font-weight:600;line-height:1.2">${upcoming ? upcoming.Email_Name.substring(0, 32) : '—'}</div>
+      <div class="kpi-label" style="margin-top:4px">${upcoming ? upcoming.Proposed_Send_Date : 'No upcoming'}</div>
     </div>
   `;
 }

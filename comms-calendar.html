@@ -715,11 +715,52 @@ const SEQUENCE_EMOJI = {
 // ============================================================
 let allData = [];
 let filteredData = [];
-// Default to the current month (today's month)
-const _today = new Date();
-let currentMonth = new Date(_today.getFullYear(), _today.getMonth(), 1);
+// currentMonth will be initialized after data loads (see initCurrentMonth)
+let currentMonth = new Date(2026, 6, 1); // fallback: Jul 2026 (event month)
 let activeFilters = { audience: [], sequence: [], priority: [] };
 let currentView = 'calendar';
+
+// Pick the most sensible month to open the calendar on
+function initCurrentMonth() {
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+
+  // 1. If browser's today is within the data range, use today
+  const dates = allData
+    .map(d => d.Proposed_Send_Date)
+    .filter(d => d && d !== 'TBD')
+    .sort();
+  if (dates.length > 0) {
+    const earliest = dates[0];
+    const latest = dates[dates.length - 1];
+    if (todayStr >= earliest && todayStr <= latest) {
+      currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      return;
+    }
+  }
+
+  // 2. Otherwise, use the month of the next upcoming (To Do) email
+  const upcoming = allData
+    .filter(d => d.Status === 'To Do' && d.Proposed_Send_Date && d.Proposed_Send_Date !== 'TBD' && d.Proposed_Send_Date >= todayStr)
+    .sort((a, b) => a.Proposed_Send_Date.localeCompare(b.Proposed_Send_Date))[0];
+  if (upcoming) {
+    const [y, m] = upcoming.Proposed_Send_Date.split('-').map(Number);
+    currentMonth = new Date(y, m - 1, 1);
+    return;
+  }
+
+  // 3. Otherwise, use the month of the latest Sent email
+  const latestSent = allData
+    .filter(d => d.Status === 'Sent' && d.Proposed_Send_Date && d.Proposed_Send_Date !== 'TBD')
+    .sort((a, b) => b.Proposed_Send_Date.localeCompare(a.Proposed_Send_Date))[0];
+  if (latestSent) {
+    const [y, m] = latestSent.Proposed_Send_Date.split('-').map(Number);
+    currentMonth = new Date(y, m - 1, 1);
+    return;
+  }
+
+  // 4. Fallback stays as Jul 2026 (event month)
+}
 
 // ============================================================
 // DATA LOADING
@@ -739,6 +780,7 @@ async function loadData() {
     allData = EMBEDDED_DATA;
     updateSyncBadge(false);
   }
+  initCurrentMonth();
   applyFilters();
   render();
 }

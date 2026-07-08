@@ -869,14 +869,6 @@ function renderKPIs() {
   const total = filteredData.length;
   const byStatus = {};
   filteredData.forEach(d => { byStatus[d.Status] = (byStatus[d.Status] || 0) + 1; });
-  const critical = filteredData.filter(d => d.Priority === 'Critical').length;
-  const high = filteredData.filter(d => d.Priority === 'High').length;
-
-  // Next upcoming
-  const today = new Date().toISOString().split('T')[0];
-  const upcoming = filteredData
-    .filter(d => d.Proposed_Send_Date && d.Proposed_Send_Date !== 'TBD' && d.Proposed_Send_Date >= today && d.Status !== 'Cancelled')
-    .sort((a, b) => a.Proposed_Send_Date.localeCompare(b.Proposed_Send_Date))[0];
 
   document.getElementById('kpiRow').innerHTML = `
     <div class="kpi-card">
@@ -888,33 +880,12 @@ function renderKPIs() {
       <div class="kpi-label">To Do</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-value orange">${byStatus['In Review'] || 0}</div>
-      <div class="kpi-label">In Review</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-value blue">${byStatus['Confirmed'] || 0}</div>
-      <div class="kpi-label">Confirmed</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-value" style="color:#c084fc">${byStatus['Scheduled'] || 0}</div>
-      <div class="kpi-label">Scheduled</div>
-    </div>
-    <div class="kpi-card">
       <div class="kpi-value green">${byStatus['Sent'] || 0}</div>
       <div class="kpi-label">Sent</div>
     </div>
     <div class="kpi-card" style="opacity:0.6">
       <div class="kpi-value" style="color:var(--text-muted);text-decoration:line-through">${byStatus['Cancelled'] || 0}</div>
       <div class="kpi-label">Cancelled</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-value red">${critical + high}</div>
-      <div class="kpi-label">High Priority</div>
-    </div>
-    <div class="kpi-card" style="border-top: 2px solid var(--gold)">
-      <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:1px;color:var(--gold);font-weight:700;margin-bottom:4px">Next Upcoming</div>
-      <div class="kpi-value gold" style="font-size:0.95rem;font-weight:600;line-height:1.2">${upcoming ? upcoming.Email_Name.substring(0, 32) : '—'}</div>
-      <div class="kpi-label" style="margin-top:4px">${upcoming ? upcoming.Proposed_Send_Date : 'No upcoming'}</div>
     </div>
   `;
 }

@@ -1071,11 +1071,15 @@ def render_ticket_types_page(regs):
     def classify(r):
         name  = (r.get("ticketName") or "").strip()
         promo = (r.get("promoCode")  or "").strip().lower()
+        n = name.lower()
+        # Crew Access ticket name is unambiguous → it wins over the promo
+        # code, so it never splits into "Crew Access" + "Crew Access (Crew)"
+        # depending on whether the MyCrewPass promo was kept.
+        if "crew access" in n:               return "Black", name
         if promo in VOLUNTEER_CODES:
             return "Purple", f"{name} (Volunteers)"
         if promo in CREW_CODES:
             return "Black", f"{name} (Crew)"
-        n = name.lower()
         if "hexagon" in n:                   return "Blue", name
         if "friends of vishen" in n:         return "Blue", name
         if "speaker" in n:                   return "Blue", name

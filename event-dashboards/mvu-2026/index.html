@@ -161,7 +161,7 @@
   <header>
     <h1>Mindvalley U 2026</h1>
     <p>Registration Dashboard — Tallinn, Estonia</p>
-    <div class="timestamp">Data snapshot: July 10, 2026 at 17:56 UTC</div>
+    <div class="timestamp">Data snapshot: July 10, 2026 at 19:45 UTC</div>
   </header>
 
   <div class="section-label">Ticket Overview</div>
@@ -169,19 +169,19 @@
     <div class="hero-card valid">
       <div class="hero-icon">🎟️</div>
       <div class="hero-label">Valid Tickets</div>
-      <div class="hero-value" data-target="1405">0</div>
+      <div class="hero-value" data-target="1408">0</div>
       <div class="hero-sub">
-        <span>7d: <span class="num" data-target="74">0</span></span>
-        <span>24h: <span class="num" data-target="3">0</span></span>
+        <span>7d: <span class="num" data-target="76">0</span></span>
+        <span>24h: <span class="num" data-target="6">0</span></span>
       </div>
     </div>
     <div class="hero-card paid">
       <div class="hero-icon">💳</div>
       <div class="hero-label">Paid Tickets</div>
-      <div class="hero-value" data-target="1078">0</div>
+      <div class="hero-value" data-target="1080">0</div>
       <div class="hero-sub">
-        <span>7d: <span class="num" data-target="28">0</span></span>
-        <span>24h: <span class="num" data-target="1">0</span></span>
+        <span>7d: <span class="num" data-target="30">0</span></span>
+        <span>24h: <span class="num" data-target="3">0</span></span>
       </div>
     </div>
     <div class="hero-card refund">
@@ -218,8 +218,8 @@
         </div>
         <div class="chart-total t2026">
           <div class="chart-total-label">2026 to date</div>
-          <div class="chart-total-val">1078</div>
-          <div class="chart-delta up">▲ +26.1% YoY</div>
+          <div class="chart-total-val">1080</div>
+          <div class="chart-delta up">▲ +26.3% YoY</div>
         </div>
       </div>
     </div>
@@ -365,9 +365,9 @@
     <div class="cat-card">
       <div class="cat-icon">👑</div>
       <div class="cat-label">VIP</div>
-      <div class="cat-value" data-target="219">0</div>
+      <div class="cat-value" data-target="220">0</div>
       <div class="cat-breakdown">
-        <div class="item"><div class="item-val" data-target="167">0</div><div class="item-label">Week 1</div></div>
+        <div class="item"><div class="item-val" data-target="168">0</div><div class="item-label">Week 1</div></div>
         <div class="item"><div class="item-val" data-target="126">0</div><div class="item-label">Week 2</div></div>
         <div class="item"><div class="item-val" data-target="6">0</div><div class="item-label">No Week Selected</div></div>
       </div>
@@ -376,10 +376,10 @@
     <div class="cat-card">
       <div class="cat-icon">💎</div>
       <div class="cat-label">First Class</div>
-      <div class="cat-value" data-target="12">0</div>
+      <div class="cat-value" data-target="13">0</div>
       <div class="cat-breakdown">
         <div class="item"><div class="item-val" data-target="9">0</div><div class="item-label">Week 1</div></div>
-        <div class="item"><div class="item-val" data-target="8">0</div><div class="item-label">Week 2</div></div>
+        <div class="item"><div class="item-val" data-target="9">0</div><div class="item-label">Week 2</div></div>
         <div class="item"><div class="item-val" data-target="0">0</div><div class="item-label">No Week Selected</div></div>
       </div>
     </div>
@@ -398,7 +398,7 @@
     <div class="cat-card">
       <div class="cat-icon">⏱️</div>
       <div class="cat-label">3 Days</div>
-      <div class="cat-value" data-target="192">0</div>
+      <div class="cat-value" data-target="193">0</div>
       <table class="td-mini">
         <thead><tr><th></th><th>W1</th><th>W2</th><th>None</th></tr></thead>
         <tbody>
@@ -409,8 +409,8 @@
           <td data-target="13">0</td>
         </tr>
         <tr>
-          <td class="td-tier">VIP<span class="td-tier-total" data-target="25">0</span></td>
-          <td data-target="18">0</td>
+          <td class="td-tier">VIP<span class="td-tier-total" data-target="26">0</span></td>
+          <td data-target="19">0</td>
           <td data-target="8">0</td>
           <td data-target="1">0</td>
         </tr>
@@ -475,7 +475,7 @@
   animateCounters();
 
   // Year-over-year line charts (data injected from Python)
-  const yoy = {"labels": ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"], "paid_2025": [145, 8, 19, 7, 8, 9, 35, 161, 104, 50, 221, 223], "paid_2026": [497, 10, 5, 5, 6, 22, 22, 51, 84, 117, 205, 54], "paid_2025_to_date": 855, "paid_2026_to_date": 1078, "available_2025": true};
+  const yoy = {"labels": ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"], "paid_2025": [145, 8, 19, 7, 8, 9, 35, 161, 104, 50, 221, 223], "paid_2026": [497, 10, 5, 5, 6, 22, 22, 51, 84, 117, 205, 56], "paid_2025_to_date": 855, "paid_2026_to_date": 1080, "available_2025": true};
 
   function renderLineChart(svgId, dataA, dataB, labels, available2025) {
     const svg = document.getElementById(svgId);

@@ -262,59 +262,91 @@ def classify_tier(ticket_name):
         return "Early Bird"
     return "Standard"
 
-# ── Special Guests groups: merged categories ─────────────────────────────────
-# Each group merges its paid ($500) and comped variants under one card with one
-# shared benefits list. Matching is hybrid: promo code first (precise; carries
-# a canonical sub-label), with a fallback to ticket-type substring so manual
-# Bizzabo activations without promo are still picked up.
+# ── Special Guests: Airtable access system ───────────────────────────────────
+# The Airtable table Álvaro agreed with his boss is the CANONICAL language for
+# special-guest access types. Bizzabo is the implementation layer (ticket types
+# + promo codes) and this mapping is the translator between the two. Cards on
+# the page are the 5 wristband groups; the Category column shows the Airtable
+# access name; the raw Bizzabo ticket stays visible as a secondary column.
 SPECIAL_GUESTS_GROUPS = [
+    {
+        "id": "speaker",
+        "name": "Speakers",
+        "emoji": "🎤",
+        "benefits": ["Event Access", "Fast Track Registration", "VIP Party",
+                     "First Row Seating", "Hexagon Events", "Speaker Lounge",
+                     "Speaker Dinner"],
+    },
     {
         "id": "hexagon",
         "name": "Hexagon",
         "emoji": "🔷",
-        "ticket_keys": ["hexagon"],
-        "promos": [
-            ("hex",       "Hexagon | $500 Ticket"),
-            ("hexcomped", "Hexagon | Comped Ticket"),
-        ],
         "benefits": ["Event Access", "Fast Track Registration", "VIP Party",
                      "First Row Seating", "Hexagon Events", "Speaker Lounge"],
     },
     {
         "id": "friends",
-        "name": "Friends of Vishen",
+        "name": "Non-Hex Friends",
         "emoji": "💜",
-        "ticket_keys": ["friends of vishen"],
-        "promos": [
-            ("friendsofvishen",       "Friends of Vishen | $500 Ticket"),
-            ("friendsofvishencomped", "Friends of Vishen | Comped Ticket"),
-        ],
         "benefits": ["Event Access", "Fast Track Registration", "VIP Party",
                      "First Row Seating", "Hexagon Events", "Speaker Lounge"],
     },
     {
-        "id": "vipguest",
-        "name": "VIP Guest",
+        "id": "vip",
+        "name": "VIP",
         "emoji": "⭐",
-        "ticket_keys": ["vip guest", "special guest"],
-        "promos": [
-            ("specialguest",       "VIP Guest | $500 Ticket"),
-            ("specialguestcomped", "VIP Guest | Comped Ticket"),
-            ("vipguest",           "VIP Guest"),
-        ],
         "benefits": ["Event Access", "Fast Track Registration", "VIP Party"],
     },
     {
-        "id": "vipmedia",
-        "name": "VIP Media",
-        "emoji": "📰",
-        "ticket_keys": ["vip media"],
-        "promos": [
-            ("vipmedia", "VIP Media"),
-        ],
-        "benefits": ["Event Access", "Fast Track Registration", "VIP Party"],
+        "id": "firstclass",
+        "name": "First Class",
+        "emoji": "💎",
+        "benefits": ["Event Access", "Fast Track Registration", "VIP Party",
+                     "First Row Seating", "First Class Experiences"],
     },
 ]
+
+# The 10 Airtable access types. Matching order: promo code first (precise),
+# then ticket-type fallback for manual Bizzabo activations without promo.
+# Speakers: ticket type only — every speaker has an individual promo code
+# (e.g. cynthiathurlowaccess) so promos can't be enumerated.
+# First Class Comp: promo only — a ticket-key fallback on "first class"
+# would swallow every regular First Class buyer from the sales tiers.
+# "bizzabo": what Álvaro must set in Bizzabo to make a guest match this access
+# (shown in the review panel as the action translation).
+SPECIAL_GUESTS_ACCESS = [
+    {"label": "Main Stage Speakers",                      "group": "speaker",
+     "promos": [],                        "ticket_keys": ["speaker"],
+     "bizzabo": "ticket 'Speaker' (each speaker has their own promo code)"},
+    {"label": "Hexagon | $500 Ticket",                    "group": "hexagon",
+     "promos": ["hex"],                   "ticket_keys": ["hexagon"], "paid": True,
+     "bizzabo": "ticket 'Hexagon | 2 Weeks' · promo hex"},
+    {"label": "Hexagon | Comped Ticket",                  "group": "hexagon",
+     "promos": ["hexcomped"],             "ticket_keys": ["hexagon"], "paid": False,
+     "bizzabo": "ticket '[Comped] Hexagon | 2 Weeks' · promo hexcomped"},
+    {"label": "Friends of Vishen | $500 Ticket + Hex Parties",   "group": "friends",
+     "promos": ["friendsofvishen"],       "ticket_keys": ["friends of vishen"], "paid": True,
+     "bizzabo": "ticket 'Friends of Vishen | 2 Weeks' · promo friendsofvishen"},
+    {"label": "Friends of Vishen | Comped Ticket + Hex Parties", "group": "friends",
+     "promos": ["friendsofvishencomped"], "ticket_keys": ["friends of vishen"], "paid": False,
+     "bizzabo": "ticket '[Comped] Friends of Vishen 2 Weeks' · promo friendsofvishencomped"},
+    {"label": "VIP Guest | $500 Ticket",                  "group": "vip",
+     "promos": ["specialguest"],          "ticket_keys": ["special guest", "vip guest"], "paid": True,
+     "bizzabo": "ticket 'Special Guest | 2 Weeks' · promo specialguest"},
+    {"label": "VIP Guest | Comped Ticket",                "group": "vip",
+     "promos": ["specialguestcomped"],    "ticket_keys": ["special guest", "vip guest"], "paid": False,
+     "bizzabo": "ticket '[Comped] Special Guest | 2 Weeks' · promo specialguestcomped"},
+    {"label": "VIP Guest",                                "group": "vip",
+     "promos": ["vipguest"],              "ticket_keys": [],
+     "bizzabo": "promo vipguest"},
+    {"label": "VIP Media",                                "group": "vip",
+     "promos": ["vipmedia"],              "ticket_keys": ["vip media"],
+     "bizzabo": "promo vipmedia"},
+    {"label": "First Class Comp",                         "group": "firstclass",
+     "promos": ["firstclassguest"],       "ticket_keys": [],
+     "bizzabo": "promo firstclassguest"},
+]
+
 # Benefit → tag colour class
 BENEFIT_TIER = {
     "Event Access":              "basic",
@@ -324,6 +356,7 @@ BENEFIT_TIER = {
     "Hexagon Events":            "premium",
     "Speaker Lounge":            "premium",
     "Speaker Dinner":            "premium",
+    "First Class Experiences":   "premium",
 }
 
 # ── Main compute ─────────────────────────────────────────────────────────────
@@ -490,37 +523,54 @@ def compute(regs):
     crew_list  = promo_list("MyCrewPass")
     vol_list   = promo_list(["Volunteer2Weeks", "Volunteer1Week"])
 
-    # ── Special Guests: hybrid match (promo code → fallback to ticket type) ──
-    # sg_data is keyed by group id; each attendee carries its sub-category label.
-    promo_to_group = {}      # lower_promo -> (group_id, canonical_sub_label)
-    for grp in SPECIAL_GUESTS_GROUPS:
-        for (p, label) in grp["promos"]:
-            promo_to_group[p.lower()] = (grp["id"], label)
+    # ── Special Guests: map each reg to an Airtable access type ──
+    # 1) promo code (precise) → canonical Airtable label.
+    # 2) ticket-type substring fallback for manual Bizzabo activations w/o
+    #    promo, disambiguating paid vs comped variants via charge (is_paid).
+    # 3) In the group but no clean access match → flagged 'unmapped' so the
+    #    page surfaces where Bizzabo drifted from the Airtable agreement.
+    promo_to_access = {}     # lower_promo -> access dict
+    for acc in SPECIAL_GUESTS_ACCESS:
+        for p in acc["promos"]:
+            promo_to_access[p.lower()] = acc
+
+    def _access_by_ticket(tt_lower, paid):
+        """Fallback: find the access whose ticket_keys match, preferring the
+        variant whose paid/comped expectation agrees with the actual charge."""
+        candidates = [a for a in SPECIAL_GUESTS_ACCESS
+                      if any(k in tt_lower for k in a.get("ticket_keys", []))]
+        if not candidates:
+            return None
+        for a in candidates:
+            if "paid" not in a or a["paid"] == paid:
+                return a
+        return candidates[0]
+
     sg_data = {grp["id"]: [] for grp in SPECIAL_GUESTS_GROUPS}
     for r in valid:
         p  = (r.get("promoCode")  or "").strip().lower()
         tt = (r.get("ticketName") or "").strip()
         tt_lower = tt.lower()
-        # 1) promo code (precise)
-        if p in promo_to_group:
-            group_id, sub_label = promo_to_group[p]
-        else:
-            # 2) ticket type substring (manual Bizzabo activations w/o promo)
-            group_id, sub_label = None, None
-            for grp in SPECIAL_GUESTS_GROUPS:
-                if any(k in tt_lower for k in grp.get("ticket_keys", [])):
-                    group_id = grp["id"]
-                    sub_label = tt or "(no ticket type)"
-                    break
-            if group_id is None:
-                continue
+        unmapped = False
+        acc = promo_to_access.get(p)
+        if acc is None:
+            acc = _access_by_ticket(tt_lower, is_paid(r))
+        if acc is None:
+            continue
+        # Drift check: matched by promo but the ticket type contradicts the
+        # expected paid/comped variant → keep the canonical label, flag it.
+        if "paid" in acc and acc["ticket_keys"]:
+            if not any(k in tt_lower for k in acc["ticket_keys"]):
+                unmapped = True
         props = r.get("properties") or {}
         email = props.get("email", "")
         name = get_attendee_name(r)
         week = get_week(r)
         is_mv = "@mindvalley" in email.lower()
-        sg_data[group_id].append({
-            "name": name, "email": email, "sub": sub_label,
+        sg_data[acc["group"]].append({
+            "rid": str(r.get("id") or ""),
+            "name": name, "email": email, "sub": acc["label"],
+            "unmapped": unmapped,
             "week": week if week else "Unassigned",
             "weeks_full": get_week_full(r) or "Unassigned",
             "is_mv": is_mv, "ticket": tt,
@@ -1550,19 +1600,25 @@ tr:hover td{{background:rgba(255,255,255,.03)}}
 </body>
 </html>"""
 
-def render_special_guests_page(sg_data):
-    """Special Guests page. One card per merged group (Hexagon / Friends of
-    Vishen / VIP Guest / VIP Media), with that group's benefits as tags and
-    its attendees listed in an embedded table inside the card. Paid and
-    comped variants share the card; the table's 'Category' column carries
-    the sub-type label."""
+def render_special_guests_page(sg_data, review=False):
+    """Special Guests page. One card per wristband group (Speakers / Hexagon /
+    Non-Hex Friends / VIP / First Class) with the group's benefits as tags and
+    an embedded attendee table. The Access column speaks Airtable (the access
+    system agreed with the boss); the raw Bizzabo ticket stays as a secondary
+    column. Rows whose Bizzabo data doesn't cleanly match any Airtable access
+    are flagged amber ('check Bizzabo').
+
+    With review=True, the Access column becomes a dropdown of the 10 Airtable
+    access types so the boss can propose reassignments. Selections differ from
+    current → ⚠️ + entry in a floating pending-changes panel that renders the
+    Bizzabo translation for Álvaro and encodes everything in a shareable URL
+    (?ov=rid:accessIndex,...). No write-back — Bizzabo changes stay manual."""
     now_str = datetime.now(tz=timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
+
+    access_labels = [a["label"] for a in SPECIAL_GUESTS_ACCESS]
 
     cards_html = ""
     for grp in SPECIAL_GUESTS_GROUPS:
-        # Attendees come pre-tagged with `sub` (the sub-category label) — either
-        # the canonical label from the matching promo, or the raw ticket type
-        # for manual Bizzabo activations that had no promo code.
         attendees = sg_data.get(grp["id"], [])
 
         # Benefit tags
@@ -1573,12 +1629,28 @@ def render_special_guests_page(sg_data):
 
         # Embedded table (or empty state) for this group's attendees
         if attendees:
-            rows_html = "".join(
-                f"<tr><td>{a['name']}</td><td class='sg-tsub'>{a['sub']}</td><td>{a['ticket']}</td><td>{a['weeks_full']}</td></tr>"
-                for a in attendees
-            )
+            rows_html = ""
+            for a in attendees:
+                if review:
+                    opts = "".join(
+                        f'<option value="{i}"{" selected" if lbl == a["sub"] else ""}>{lbl}</option>'
+                        for i, lbl in enumerate(access_labels)
+                    )
+                    cur_idx = access_labels.index(a["sub"]) if a["sub"] in access_labels else -1
+                    access_cell = (
+                        f'<td class="sg-tsub"><span class="sg-ov-flag" hidden>⚠️</span>'
+                        f'<select class="sg-select" data-rid="{a["rid"]}" data-name="{a["name"]}" '
+                        f'data-cur="{cur_idx}">{opts}</select></td>'
+                    )
+                else:
+                    flag = ' <span class="sg-unmapped" title="Bizzabo data does not cleanly match this Airtable access — check Bizzabo">⚠️</span>' if a.get("unmapped") else ""
+                    access_cell = f"<td class='sg-tsub'>{a['sub']}{flag}</td>"
+                rows_html += (
+                    f"<tr><td>{a['name']}</td>{access_cell}"
+                    f"<td class='sg-bizzabo'>{a['ticket']}</td><td>{a['weeks_full']}</td></tr>"
+                )
             inner = f"""<table class="sg-table">
-<thead><tr><th>Name</th><th>Category</th><th>Ticket Type</th><th>When</th></tr></thead>
+<thead><tr><th>Name</th><th>Access</th><th>Bizzabo Ticket</th><th>When</th></tr></thead>
 <tbody>{rows_html}</tbody>
 </table>"""
         else:
@@ -1595,11 +1667,131 @@ def render_special_guests_page(sg_data):
   {inner}
 </div>"""
 
+    # ── Review-mode extras (preview page only) ──
+    review_badge = ""
+    review_css = ""
+    review_js = ""
+    if review:
+        review_badge = '<div class="sg-review-badge">🧪 REVIEW MODE — preview · selections are proposals only, nothing changes in Bizzabo</div>'
+        review_css = """
+.sg-review-badge{margin-top:12px;display:inline-block;padding:6px 16px;border-radius:20px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.4);font-size:.8rem;color:#fbbf24;font-weight:600}
+.sg-select{background:#1c1938;color:var(--purple-light);border:1px solid var(--card-border);border-radius:8px;padding:5px 8px;font-size:.8rem;max-width:280px;cursor:pointer}
+.sg-select.changed{border-color:#fbbf24;color:#fbbf24;background:rgba(251,191,36,.08)}
+.sg-ov-flag{margin-right:6px}
+#sg-panel{position:fixed;bottom:20px;right:20px;width:380px;max-height:60vh;overflow-y:auto;background:#1c1938;border:1px solid #fbbf24;border-radius:14px;padding:16px 18px;z-index:50;box-shadow:0 12px 48px rgba(0,0,0,.5)}
+#sg-panel h3{font-size:.9rem;color:#fbbf24;margin-bottom:10px}
+#sg-panel .pc-item{font-size:.78rem;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+#sg-panel .pc-item:last-of-type{border-bottom:none}
+#sg-panel .pc-name{font-weight:700;color:var(--text)}
+#sg-panel .pc-change{color:var(--text-dim);margin-top:2px}
+#sg-panel .pc-change b{color:#fbbf24;font-weight:600}
+#sg-panel .pc-bizzabo{color:var(--green);margin-top:2px;font-size:.72rem}
+#sg-panel .pc-actions{display:flex;gap:8px;margin-top:12px}
+#sg-panel button{flex:1;padding:8px 10px;border-radius:8px;border:none;font-size:.78rem;font-weight:700;cursor:pointer}
+#sg-panel .pc-copy{background:#fbbf24;color:#1c1938}
+#sg-panel .pc-copy:hover{background:#fcd34d}
+#sg-panel .pc-clear{background:rgba(255,255,255,.08);color:var(--text-dim)}
+#sg-panel .pc-clear:hover{background:rgba(255,255,255,.14)}
+"""
+        access_json  = json.dumps([a["label"]   for a in SPECIAL_GUESTS_ACCESS])
+        bizzabo_json = json.dumps([a["bizzabo"] for a in SPECIAL_GUESTS_ACCESS])
+        # Plain (non-f) string so JS braces don't need escaping.
+        review_js = ("<script>\nconst SG_ACCESS=" + access_json +
+                     ";\nconst SG_BIZZABO=" + bizzabo_json + ";\n" + """
+const overrides = {};   // rid -> {name, curIdx, newIdx}
+
+function syncURL() {
+  const parts = Object.entries(overrides).map(([rid, o]) => rid + ':' + o.newIdx);
+  const url = new URL(location.href);
+  if (parts.length) url.searchParams.set('ov', parts.join(','));
+  else url.searchParams.delete('ov');
+  history.replaceState(null, '', url);
+}
+
+function renderPanel() {
+  let panel = document.getElementById('sg-panel');
+  const n = Object.keys(overrides).length;
+  if (!n) { if (panel) panel.remove(); return; }
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'sg-panel';
+    document.body.appendChild(panel);
+  }
+  let html = '<h3>⚠️ ' + n + ' pending change' + (n > 1 ? 's' : '') + '</h3>';
+  for (const [rid, o] of Object.entries(overrides)) {
+    html += '<div class="pc-item">'
+          + '<div class="pc-name">' + o.name + '</div>'
+          + '<div class="pc-change">' + (SG_ACCESS[o.curIdx] || '(unmapped)') + ' → <b>' + SG_ACCESS[o.newIdx] + '</b></div>'
+          + '<div class="pc-bizzabo">Bizzabo: ' + SG_BIZZABO[o.newIdx] + '</div>'
+          + '</div>';
+  }
+  html += '<div class="pc-actions">'
+        + '<button class="pc-copy" onclick="copyLink(this)">Copy shareable link</button>'
+        + '<button class="pc-clear" onclick="clearAll()">Clear all</button>'
+        + '</div>';
+  panel.innerHTML = html;
+}
+
+function copyLink(btn) {
+  navigator.clipboard.writeText(location.href).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy shareable link'; }, 1600);
+  });
+}
+
+function clearAll() {
+  document.querySelectorAll('.sg-select').forEach(sel => {
+    sel.value = sel.dataset.cur;
+    applyChange(sel, false);
+  });
+  renderPanel(); syncURL();
+}
+
+function applyChange(sel, updatePanel = true) {
+  const rid = sel.dataset.rid;
+  const cur = parseInt(sel.dataset.cur, 10);
+  const val = parseInt(sel.value, 10);
+  const flag = sel.parentElement.querySelector('.sg-ov-flag');
+  if (val !== cur) {
+    overrides[rid] = { name: sel.dataset.name, curIdx: cur, newIdx: val };
+    sel.classList.add('changed');
+    if (flag) flag.hidden = false;
+  } else {
+    delete overrides[rid];
+    sel.classList.remove('changed');
+    if (flag) flag.hidden = true;
+  }
+  if (updatePanel) { renderPanel(); syncURL(); }
+}
+
+document.querySelectorAll('.sg-select').forEach(sel => {
+  sel.addEventListener('change', () => applyChange(sel));
+});
+
+// Restore overrides from a shared URL
+const ovParam = new URLSearchParams(location.search).get('ov');
+if (ovParam) {
+  const byRid = {};
+  document.querySelectorAll('.sg-select').forEach(sel => { byRid[sel.dataset.rid] = sel; });
+  ovParam.split(',').forEach(pair => {
+    const [rid, idx] = pair.split(':');
+    const sel = byRid[rid];
+    if (sel && idx !== undefined && SG_ACCESS[parseInt(idx, 10)] !== undefined) {
+      sel.value = idx;
+      applyChange(sel, false);
+    }
+  });
+  renderPanel(); syncURL();
+}
+</script>""")
+
+    title_suffix = " · Review Preview" if review else ""
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Special Guests — MVU 2026</title>
+<title>Special Guests — MVU 2026{title_suffix}</title>
 <style>
 *,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
 :root{{--bg:#0b0a1a;--card:#14122a;--card-border:#2a2650;--gold:#d4a843;--purple:#7c3aed;--purple-light:#a78bfa;--text:#e8e4f0;--text-dim:#9a93b0;--green:#34d399}}
@@ -1626,8 +1818,10 @@ header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
 .sg-table tbody tr:last-child td{{border-bottom:none}}
 .sg-table tbody tr:hover td{{background:rgba(255,255,255,.02)}}
 .sg-table td.sg-tsub{{color:var(--purple-light);font-size:.82rem;font-weight:500}}
+.sg-table td.sg-bizzabo{{color:var(--text-dim);font-size:.78rem}}
+.sg-unmapped{{cursor:help}}
 .sg-empty-inline{{text-align:center;padding:18px;color:var(--text-dim);font-size:.85rem;font-style:italic;border-top:1px solid rgba(255,255,255,.06)}}
-</style>
+{review_css}</style>
 </head>
 <body>
 <div class="container">
@@ -1635,9 +1829,11 @@ header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
   <h1>Special Guests</h1>
   <p>Mindvalley U 2026 — Tallinn, Estonia</p>
   <div class="timestamp">Data snapshot: {now_str}</div>
+  {review_badge}
 </header>
 {cards_html}
 </div>
+{review_js}
 </body>
 </html>"""
 
@@ -2046,6 +2242,14 @@ if __name__ == "__main__":
         f.write(render_special_guests_page(sg_data))
     sg_total = sum(len(v) for v in sg_data.values())
     print(f"   Special Guests: {sg_total} registrations -> {sg_path}")
+
+    # Review-mode preview (NOT linked from the sidebar — direct URL only).
+    # Same data, but the Access column is a dropdown so the boss can propose
+    # reassignments; proposals live in the URL, nothing writes to Bizzabo.
+    sg_preview_path = "event-dashboards/mvu-2026/special-guests-preview.html"
+    with open(sg_preview_path, "w", encoding="utf-8") as f:
+        f.write(render_special_guests_page(sg_data, review=True))
+    print(f"   Special Guests (review preview) -> {sg_preview_path}")
 
     # Kids & Teens page — one card per program × week, ages ascending,
     # 'Both Weeks' attendees appear in both W1 and W2 lists.

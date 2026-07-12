@@ -527,26 +527,35 @@ def compute(regs):
     crew_list  = promo_list("MyCrewPass")
     vol_list   = promo_list(["Volunteer2Weeks", "Volunteer1Week"])
 
-    # ── Special Guests: map each reg to an Airtable access type ──
-    # 1) promo code (precise) → canonical Airtable label.
-    # 2) ticket-type substring fallback for manual Bizzabo activations w/o
-    #    promo, disambiguating paid vs comped variants via charge (is_paid).
-    # 3) In the group but no clean access match → flagged 'unmapped' so the
-    #    page surfaces where Bizzabo drifted from the Airtable agreement.
+    # ── Special Guests: map each reg to an access type, TICKET TYPE FIRST ──
+    # The ticket type is what Bizzabo actually enforces (wristband, access),
+    # while promoCode is frozen at registration time and survives manual
+    # re-sorts — so when Álvaro reclassifies a guest by changing their ticket,
+    # the ticket must win. Order:
+    # 1) ticket-type substring → access; paid/comped variant picked by the
+    #    ticket NAME ('comped' in it or not), NOT by charge — a manually
+    #    comped guest left on a paid ticket type should still read as that
+    #    paid ticket type, verbatim.
+    # 2) promo code fallback for generic tickets (vipguest / vipmedia /
+    #    firstclassguest ride Adult/First Class tickets).
+    # 3) Promo-matched records whose access expects a ticket type the reg
+    #    doesn't have → flagged 'unmapped' (amber): real drift, the guest's
+    #    ticket in Bizzabo probably needs fixing.
     promo_to_access = {}     # lower_promo -> access dict
     for acc in SPECIAL_GUESTS_ACCESS:
         for p in acc["promos"]:
             promo_to_access[p.lower()] = acc
 
-    def _access_by_ticket(tt_lower, paid):
-        """Fallback: find the access whose ticket_keys match, preferring the
-        variant whose paid/comped expectation agrees with the actual charge."""
+    def _access_by_ticket(tt_lower):
+        """Find the access whose ticket_keys match, preferring the variant
+        whose paid/comped expectation agrees with the ticket name itself."""
         candidates = [a for a in SPECIAL_GUESTS_ACCESS
                       if any(k in tt_lower for k in a.get("ticket_keys", []))]
         if not candidates:
             return None
+        name_is_paid = "comped" not in tt_lower
         for a in candidates:
-            if "paid" not in a or a["paid"] == paid:
+            if "paid" not in a or a["paid"] == name_is_paid:
                 return a
         return candidates[0]
 
@@ -556,15 +565,14 @@ def compute(regs):
         tt = (r.get("ticketName") or "").strip()
         tt_lower = tt.lower()
         unmapped = False
-        acc = promo_to_access.get(p)
+        acc = _access_by_ticket(tt_lower)
         if acc is None:
-            acc = _access_by_ticket(tt_lower, is_paid(r))
-        if acc is None:
-            continue
-        # Drift check: matched by promo but the ticket type contradicts the
-        # expected paid/comped variant → keep the canonical label, flag it.
-        if "paid" in acc and acc["ticket_keys"]:
-            if not any(k in tt_lower for k in acc["ticket_keys"]):
+            acc = promo_to_access.get(p)
+            if acc is None:
+                continue
+            # Promo claims an access with a dedicated ticket type, but this
+            # reg rides a generic ticket → drift, needs a look in Bizzabo.
+            if acc["ticket_keys"]:
                 unmapped = True
         props = r.get("properties") or {}
         email = props.get("email", "")

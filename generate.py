@@ -312,37 +312,41 @@ SPECIAL_GUESTS_GROUPS = [
 # (e.g. cynthiathurlowaccess) so promos can't be enumerated.
 # First Class Comp: promo only — a ticket-key fallback on "first class"
 # would swallow every regular First Class buyer from the sales tiers.
+# "label": the term shown in the Access column and review dropdown — these are
+# the Bizzabo ticket-type names the dashboard has always used, so what the
+# boss selects is literally what Álvaro sets in Bizzabo. The three promo-only
+# accesses (no dedicated ticket type) carry their promo in the label.
 # "bizzabo": what Álvaro must set in Bizzabo to make a guest match this access
 # (shown in the review panel as the action translation).
 SPECIAL_GUESTS_ACCESS = [
-    {"label": "Main Stage Speakers",                      "group": "speaker",
+    {"label": "Speaker",                                  "group": "speaker",
      "promos": [],                        "ticket_keys": ["speaker"],
      "bizzabo": "ticket 'Speaker' (each speaker has their own promo code)"},
-    {"label": "Hexagon | $500 Ticket",                    "group": "hexagon",
+    {"label": "Hexagon | 2 Weeks",                        "group": "hexagon",
      "promos": ["hex"],                   "ticket_keys": ["hexagon"], "paid": True,
      "bizzabo": "ticket 'Hexagon | 2 Weeks' · promo hex"},
-    {"label": "Hexagon | Comped Ticket",                  "group": "hexagon",
+    {"label": "[Comped] Hexagon | 2 Weeks",               "group": "hexagon",
      "promos": ["hexcomped"],             "ticket_keys": ["hexagon"], "paid": False,
      "bizzabo": "ticket '[Comped] Hexagon | 2 Weeks' · promo hexcomped"},
-    {"label": "Friends of Vishen | $500 Ticket + Hex Parties",   "group": "friends",
+    {"label": "Friends of Vishen | 2 Weeks",              "group": "friends",
      "promos": ["friendsofvishen"],       "ticket_keys": ["friends of vishen"], "paid": True,
      "bizzabo": "ticket 'Friends of Vishen | 2 Weeks' · promo friendsofvishen"},
-    {"label": "Friends of Vishen | Comped Ticket + Hex Parties", "group": "friends",
+    {"label": "[Comped] Friends of Vishen 2 Weeks",       "group": "friends",
      "promos": ["friendsofvishencomped"], "ticket_keys": ["friends of vishen"], "paid": False,
      "bizzabo": "ticket '[Comped] Friends of Vishen 2 Weeks' · promo friendsofvishencomped"},
-    {"label": "VIP Guest | $500 Ticket",                  "group": "vip",
+    {"label": "Special Guest | 2 Weeks",                  "group": "vip",
      "promos": ["specialguest"],          "ticket_keys": ["special guest", "vip guest"], "paid": True,
      "bizzabo": "ticket 'Special Guest | 2 Weeks' · promo specialguest"},
-    {"label": "VIP Guest | Comped Ticket",                "group": "vip",
+    {"label": "[Comped] Special Guest | 2 Weeks",         "group": "vip",
      "promos": ["specialguestcomped"],    "ticket_keys": ["special guest", "vip guest"], "paid": False,
      "bizzabo": "ticket '[Comped] Special Guest | 2 Weeks' · promo specialguestcomped"},
-    {"label": "VIP Guest",                                "group": "vip",
+    {"label": "VIP Guest (promo vipguest)",               "group": "vip",
      "promos": ["vipguest"],              "ticket_keys": [],
      "bizzabo": "promo vipguest"},
-    {"label": "VIP Media",                                "group": "vip",
+    {"label": "VIP Media (promo vipmedia)",               "group": "vip",
      "promos": ["vipmedia"],              "ticket_keys": ["vip media"],
      "bizzabo": "promo vipmedia"},
-    {"label": "First Class Comp",                         "group": "firstclass",
+    {"label": "First Class Comp (promo firstclassguest)", "group": "firstclass",
      "promos": ["firstclassguest"],       "ticket_keys": [],
      "bizzabo": "promo firstclassguest"},
 ]

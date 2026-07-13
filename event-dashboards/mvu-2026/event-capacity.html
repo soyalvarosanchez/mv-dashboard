@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Event Capacity — MVU 2026</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0b0a1a;--card:#14122a;--card-border:#2a2650;--gold:#d4a843;--purple:#7c3aed;--purple-light:#a78bfa;--text:#e8e4f0;--text-dim:#9a93b0;--green:#34d399;--red:#f87171;--orange:#fb923c}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:32px 20px}
+.container{max-width:1200px;margin:0 auto}
+header{text-align:center;margin-bottom:30px}
+h1{font-size:1.9rem;font-weight:800;background:linear-gradient(135deg,var(--gold),var(--purple-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.02em}
+header p{color:var(--text-dim);margin-top:6px;font-size:.9rem}
+.timestamp{display:inline-block;margin-top:10px;padding:4px 14px;border-radius:20px;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);font-size:.8rem;color:var(--purple-light)}
+
+.ec-week-label{font-size:1.1rem;font-weight:700;color:var(--gold);margin:8px 0 14px;text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:8px}
+.ec-week-label::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(212,168,67,.5),transparent)}
+.ec-grid{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:16px;margin-bottom:32px}
+@media (max-width:900px){.ec-grid{grid-template-columns:1fr}}
+
+.ec-card{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:22px;position:relative;overflow:hidden}
+.ec-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold),var(--purple));border-radius:16px 16px 0 0}
+.ec-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.ec-card-title{font-size:.85rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.ec-pill{font-size:.68rem;font-weight:600;padding:3px 9px;border-radius:12px;background:rgba(251,146,60,.13);color:var(--orange);border:1px solid rgba(251,146,60,.3);white-space:nowrap;cursor:help}
+.ec-total{font-size:2.6rem;font-weight:800;color:var(--gold);line-height:1.1;margin:2px 0 14px}
+.ec-total-big{font-size:3.2rem}
+
+.ec-rows{display:flex;flex-direction:column}
+.ec-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:7px 2px;border-bottom:1px solid rgba(255,255,255,.045)}
+.ec-row:last-child{border-bottom:none}
+.ec-row-label{font-size:.86rem;color:var(--text)}
+.ec-row-hint{display:block;font-size:.68rem;color:var(--text-dim);margin-top:1px}
+.ec-row-val{font-size:1.05rem;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
+
+.ec-youth-row{margin-bottom:14px}
+.ec-youth-head{display:flex;justify-content:space-between;align-items:baseline;font-size:.86rem;margin-bottom:5px}
+.ec-youth-num{font-weight:700;font-size:1.05rem;font-variant-numeric:tabular-nums}
+.ec-youth-cap{font-weight:400;font-size:.75rem;color:var(--text-dim)}
+.ec-bar-track{width:100%;height:10px;border-radius:5px;background:rgba(255,255,255,.06);overflow:hidden}
+.ec-bar-fill{height:100%;border-radius:5px}
+.ec-bar-fill.lv-green{background:linear-gradient(90deg,#34d399,#059669)}
+.ec-bar-fill.lv-yellow{background:linear-gradient(90deg,#fbbf24,#d97706)}
+.ec-bar-fill.lv-red{background:linear-gradient(90deg,#f87171,#dc2626)}
+
+.ec-card-combined{display:flex;flex-direction:column}
+.ec-card-combined .ec-total{margin-bottom:4px}
+.ec-combined-note{font-size:.8rem;color:var(--text-dim)}
+.ec-crew-note{font-size:.72rem;color:var(--text-dim);font-style:italic;margin-top:2px}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <h1>Event Capacity</h1>
+  <p>Mindvalley U 2026 — Tallinn, Estonia · Headcount per week</p>
+  <div class="timestamp">Data snapshot: July 13, 2026 at 12:06 UTC</div>
+</header>
+
+<div class="ec-week-label">Week 1 · July 20 – 26</div>
+<div class="ec-grid">
+  <div class="ec-card">
+    <div class="ec-card-head">
+      <div class="ec-card-title">🎓 Adult Program</div>
+      <span class="ec-pill" title="People who haven't selected a week yet — could join either week">+53 no week selected</span>
+    </div>
+    <div class="ec-total">949</div>
+    <div class="ec-rows">
+      <div class="ec-row">
+        <div class="ec-row-label">VVIPs<span class="ec-row-hint">Speakers · Hexagon · Non-Hex Friends</span></div>
+        <div class="ec-row-val">21</div>
+      </div>
+      <div class="ec-row">
+        <div class="ec-row-label">First Class</div>
+        <div class="ec-row-val">10</div>
+      </div>
+      <div class="ec-row">
+        <div class="ec-row-label">VIP</div>
+        <div class="ec-row-val">188</div>
+      </div>
+      <div class="ec-row">
+        <div class="ec-row-label">Regular<span class="ec-row-hint">Adult &amp; Standard tickets</span></div>
+        <div class="ec-row-val">528</div>
+      </div>
+      <div class="ec-row">
+        <div class="ec-row-label">Volunteers</div>
+        <div class="ec-row-val">193</div>
+      </div>
+      <div class="ec-row">
+        <div class="ec-row-label">Crew<span class="ec-row-hint">Mindvalley team</span></div>
+        <div class="ec-row-val">9</div>
+      </div>
+      <div class="ec-row">
+        <div class="ec-row-label">Comps<span class="ec-row-hint">Other comped tickets</span></div>
+        <div class="ec-row-val">0</div>
+      </div>
+    </div>
+  </div>
+  <div class="ec-card">
+    <div class="ec-card-head">
+      <div class="ec-card-title">🧒 Kids &amp; Teens Program</div>
+      <span class="ec-pill" title="People who haven't selected a week yet — could join either week">+20 no week selected</span>
+    </div>
+    <div class="ec-total">124</div>
+    
+    <div class="ec-youth-row">
+      <div class="ec-youth-head"><span>🧒 Kids (6-12)</span><span class="ec-youth-num">65<span class="ec-youth-cap"> / 70</span></span></div>
+      <div class="ec-bar-track"><div class="ec-bar-fill lv-yellow" style="width:92.9%"></div></div>
+    </div>
+    
+    <div class="ec-youth-row">
+      <div class="ec-youth-head"><span>🧑 Teens (13-17)</span><span class="ec-youth-num">59<span class="ec-youth-cap"> / 70</span></span></div>
+      <div class="ec-bar-track"><div class="ec-bar-fill lv-green" style="width:84.3%"></div></div>
+    </div>
+  </div>
+  <div class="ec-card ec-card-combined">
+    <div class="ec-card-head">
+      <div class="ec-card-title">🎉 Adults &amp; Youth</div>
+      <span class="ec-pill" title="People who haven't selected a week yet — could join either week">+73 no week selected</span>
+    </div>
+    <div class="ec-total ec-total-big">1073</div>
+    <div class="ec-combined-note">people expected at parties &amp; hub</div>
+    <div class="ec-crew-note">(crew included)</div>
+  </div>
+</div>
+
+<div class="ec-week-label">Week 2 · July 27 – August 2</div>
+<div class="ec-grid">
+  <div class="ec-card">
+    <div class="ec-card-head">
+      <div class="ec-card-title">🎓 Adult Program</div>
+      <span class="ec-pill" title="People who haven't selected a week yet — could join either week">+53 no week selected</span>
+    </div>
+    <div class="ec-total">832</div>
+    <div class="ec-rows">
+      <div class="ec-row">
+        <div class="ec-row-label">VVIPs<span class="ec-row-hint">Speakers · Hexagon · Non-Hex Friends</span></div>
+        <div class="ec-row-val">25</div>
+      </div>
+      <div class="ec-row">
+        <div class="ec-row-label">First Class</div>
+        <div class="ec-row-val">9</div>
+      </div>
+      <div class="ec-row">
+        <div class="ec-row-label">VIP</div>
+        <div class="ec-row-val">149</div>
+      </div>
+      <div class="ec-row">
+        <div class="ec-row-label">Regular<span class="ec-row-hint">Adult &amp; Standard tickets</span></div>
+        <div class="ec-row-val">442</div>
+      </div>
+      <div class="ec-row">
+        <div class="ec-row-label">Volunteers</div>
+        <div class="ec-row-val">196</div>
+      </div>
+      <div class="ec-row">
+        <div class="ec-row-label">Crew<span class="ec-row-hint">Mindvalley team</span></div>
+        <div class="ec-row-val">11</div>
+      </div>
+      <div class="ec-row">
+        <div class="ec-row-label">Comps<span class="ec-row-hint">Other comped tickets</span></div>
+        <div class="ec-row-val">0</div>
+      </div>
+    </div>
+  </div>
+  <div class="ec-card">
+    <div class="ec-card-head">
+      <div class="ec-card-title">🧒 Kids &amp; Teens Program</div>
+      <span class="ec-pill" title="People who haven't selected a week yet — could join either week">+20 no week selected</span>
+    </div>
+    <div class="ec-total">116</div>
+    
+    <div class="ec-youth-row">
+      <div class="ec-youth-head"><span>🧒 Kids (6-12)</span><span class="ec-youth-num">58<span class="ec-youth-cap"> / 70</span></span></div>
+      <div class="ec-bar-track"><div class="ec-bar-fill lv-green" style="width:82.9%"></div></div>
+    </div>
+    
+    <div class="ec-youth-row">
+      <div class="ec-youth-head"><span>🧑 Teens (13-17)</span><span class="ec-youth-num">58<span class="ec-youth-cap"> / 70</span></span></div>
+      <div class="ec-bar-track"><div class="ec-bar-fill lv-green" style="width:82.9%"></div></div>
+    </div>
+  </div>
+  <div class="ec-card ec-card-combined">
+    <div class="ec-card-head">
+      <div class="ec-card-title">🎉 Adults &amp; Youth</div>
+      <span class="ec-pill" title="People who haven't selected a week yet — could join either week">+73 no week selected</span>
+    </div>
+    <div class="ec-total ec-total-big">948</div>
+    <div class="ec-combined-note">people expected at parties &amp; hub</div>
+    <div class="ec-crew-note">(crew included)</div>
+  </div>
+</div>
+</div>
+</body>
+</html>

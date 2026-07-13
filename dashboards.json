@@ -8,6 +8,13 @@
       "description": "Dashboard"
     },
     {
+      "id": "mvu-2026-event-capacity",
+      "label": "Event Capacity",
+      "icon": "📊",
+      "path": "event-dashboards/mvu-2026/event-capacity.html",
+      "description": ""
+    },
+    {
       "id": "mvu-2026-crewpass",
       "label": "Crew - MV Team",
       "icon": "🎫",

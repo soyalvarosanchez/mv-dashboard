@@ -590,7 +590,52 @@ def compute(regs):
             "is_mv": is_mv, "ticket": tt,
         })
 
-    return hero, kids, teens, vip, fc, reg, threeday, cap, crew_list, vol_list, sg_data, refunds_by_tier
+    # ── Event Capacity: every valid reg lands in EXACTLY ONE bucket ──
+    # Buckets: kids / teens (youth) · vvip / fc / vip / reg / vol / crew /
+    # comps (adults). Precedence mirrors how access actually works:
+    # youth tickets first, then Special Guests membership (Speakers+Hexagon+
+    # Non-Hex Friends → VVIP, VIP group → VIP, First Class group → FC), then
+    # volunteer/crew promos, then ticket families (FC → VIP → Regular), and
+    # any remaining comped ticket → comps. Genuinely unclassifiable tickets
+    # are logged loudly and counted under comps so totals still reconcile.
+    SG_GROUP_TO_BUCKET = {"speaker": "vvip", "hexagon": "vvip", "friends": "vvip",
+                          "vip": "vip", "firstclass": "fc"}
+    _cap_leftovers = {}
+    def capacity_bucket(r):
+        t = (r.get("ticketName") or "").lower()
+        p = (r.get("promoCode") or "").strip().lower()
+        if "kid"  in t: return "kids"
+        if "teen" in t: return "teens"
+        acc = _access_by_ticket(t) or promo_to_access.get(p)
+        if acc:
+            return SG_GROUP_TO_BUCKET[acc["group"]]
+        if p in ("volunteer2weeks", "volunteer1week"): return "vol"
+        if p == "mycrewpass" or "crew" in t:           return "crew"
+        if "first class" in t:                         return "fc"
+        if "vip" in t:                                 return "vip"
+        if "adult" in t or "standard" in t:            return "reg"
+        if "comped" in t:                              return "comps"
+        _cap_leftovers[r.get("ticketName") or "<no ticket>"] = \
+            _cap_leftovers.get(r.get("ticketName") or "<no ticket>", 0) + 1
+        return "comps"
+
+    CAP_BUCKETS = ("vvip", "fc", "vip", "reg", "vol", "crew", "comps", "kids", "teens")
+    evcap = {w: {b: 0 for b in CAP_BUCKETS} for w in ("w1", "w2", "unass")}
+    for r in valid:
+        b = capacity_bucket(r)
+        w = get_week(r)
+        if w in ("Week 1", "Both Weeks"): evcap["w1"][b] += 1
+        if w in ("Week 2", "Both Weeks"): evcap["w2"][b] += 1
+        if not w:                         evcap["unass"][b] += 1
+    # Reconciliation: every valid ticket must be in exactly one bucket.
+    _cap_people = {}
+    for r in valid:
+        _cap_people[capacity_bucket(r)] = _cap_people.get(capacity_bucket(r), 0) + 1
+    print(f"   Event capacity buckets (all weeks): {_cap_people} · sum={sum(_cap_people.values())} vs valid={len(valid)}")
+    if _cap_leftovers:
+        print(f"   ⚠️  Unclassified tickets counted as comps: {_cap_leftovers}")
+
+    return hero, kids, teens, vip, fc, reg, threeday, cap, crew_list, vol_list, sg_data, refunds_by_tier, evcap
 
 # ── Year-over-year time series ───────────────────────────────────────────────
 def compute_yoy(regs_2026, regs_2025=None):
@@ -1851,6 +1896,153 @@ header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
 </body>
 </html>"""
 
+def render_event_capacity_page(evcap):
+    """Event Capacity page: per-week headcounts for the boss's aforo view.
+    Week 1 on top, Week 2 below. Each week shows three cards:
+      · Adult Program — total + breakdown (VVIPs / First Class / VIP /
+        Regular / Volunteers / Crew / Comps)
+      · Kids & Teens Program — Kids and Teens with capacity bars (cap 70)
+      · Adults & Youth — combined total, '(crew included)' note
+    Every card carries a '+N no week selected' pill: people who haven't
+    picked a week yet could land in either one (worst case)."""
+    now_str = datetime.now(tz=timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
+
+    ADULT_ROWS = [
+        ("vvip",  "VVIPs",        "Speakers · Hexagon · Non-Hex Friends"),
+        ("fc",    "First Class",  ""),
+        ("vip",   "VIP",          ""),
+        ("reg",   "Regular",      "Adult &amp; Standard tickets"),
+        ("vol",   "Volunteers",   ""),
+        ("crew",  "Crew",         "Mindvalley team"),
+        ("comps", "Comps",        "Other comped tickets"),
+    ]
+    ADULT_KEYS = [k for k, _, _ in ADULT_ROWS]
+
+    def adults_total(w):   return sum(evcap[w][k] for k in ADULT_KEYS)
+    def youth_total(w):    return evcap[w]["kids"] + evcap[w]["teens"]
+
+    unass = evcap["unass"]
+    unass_adults = sum(unass[k] for k in ADULT_KEYS)
+    unass_youth  = unass["kids"] + unass["teens"]
+
+    def pill(n):
+        if not n: return ""
+        return f'<span class="ec-pill" title="People who haven\'t selected a week yet — could join either week">+{n} no week selected</span>'
+
+    def youth_bar(label, emoji, n):
+        worst = n  # per-week bar shows confirmed; unassigned is the card pill
+        pct = min(n / CAPACITY * 100, 100)
+        level = "red" if n >= CAPACITY else ("yellow" if n >= 60 else "green")
+        return f"""
+    <div class="ec-youth-row">
+      <div class="ec-youth-head"><span>{emoji} {label}</span><span class="ec-youth-num">{n}<span class="ec-youth-cap"> / {CAPACITY}</span></span></div>
+      <div class="ec-bar-track"><div class="ec-bar-fill lv-{level}" style="width:{pct:.1f}%"></div></div>
+    </div>"""
+
+    def week_section(wkey, title):
+        a_total = adults_total(wkey)
+        y_total = youth_total(wkey)
+        rows_html = "".join(f"""
+      <div class="ec-row">
+        <div class="ec-row-label">{label}{f'<span class="ec-row-hint">{hint}</span>' if hint else ''}</div>
+        <div class="ec-row-val">{evcap[wkey][key]}</div>
+      </div>""" for key, label, hint in ADULT_ROWS)
+        return f"""
+<div class="ec-week-label">{title}</div>
+<div class="ec-grid">
+  <div class="ec-card">
+    <div class="ec-card-head">
+      <div class="ec-card-title">🎓 Adult Program</div>
+      {pill(unass_adults)}
+    </div>
+    <div class="ec-total">{a_total}</div>
+    <div class="ec-rows">{rows_html}
+    </div>
+  </div>
+  <div class="ec-card">
+    <div class="ec-card-head">
+      <div class="ec-card-title">🧒 Kids &amp; Teens Program</div>
+      {pill(unass_youth)}
+    </div>
+    <div class="ec-total">{y_total}</div>
+    {youth_bar("Kids (6-12)",  "🧒", evcap[wkey]["kids"])}
+    {youth_bar("Teens (13-17)", "🧑", evcap[wkey]["teens"])}
+  </div>
+  <div class="ec-card ec-card-combined">
+    <div class="ec-card-head">
+      <div class="ec-card-title">🎉 Adults &amp; Youth</div>
+      {pill(unass_adults + unass_youth)}
+    </div>
+    <div class="ec-total ec-total-big">{a_total + y_total}</div>
+    <div class="ec-combined-note">people expected at parties &amp; hub</div>
+    <div class="ec-crew-note">(crew included)</div>
+  </div>
+</div>"""
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Event Capacity — MVU 2026</title>
+<style>
+*,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
+:root{{--bg:#0b0a1a;--card:#14122a;--card-border:#2a2650;--gold:#d4a843;--purple:#7c3aed;--purple-light:#a78bfa;--text:#e8e4f0;--text-dim:#9a93b0;--green:#34d399;--red:#f87171;--orange:#fb923c}}
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:32px 20px}}
+.container{{max-width:1200px;margin:0 auto}}
+header{{text-align:center;margin-bottom:30px}}
+h1{{font-size:1.9rem;font-weight:800;background:linear-gradient(135deg,var(--gold),var(--purple-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.02em}}
+header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
+.timestamp{{display:inline-block;margin-top:10px;padding:4px 14px;border-radius:20px;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);font-size:.8rem;color:var(--purple-light)}}
+
+.ec-week-label{{font-size:1.1rem;font-weight:700;color:var(--gold);margin:8px 0 14px;text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:8px}}
+.ec-week-label::after{{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(212,168,67,.5),transparent)}}
+.ec-grid{{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:16px;margin-bottom:32px}}
+@media (max-width:900px){{.ec-grid{{grid-template-columns:1fr}}}}
+
+.ec-card{{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:22px;position:relative;overflow:hidden}}
+.ec-card::before{{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold),var(--purple));border-radius:16px 16px 0 0}}
+.ec-card-head{{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}}
+.ec-card-title{{font-size:.85rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:.06em}}
+.ec-pill{{font-size:.68rem;font-weight:600;padding:3px 9px;border-radius:12px;background:rgba(251,146,60,.13);color:var(--orange);border:1px solid rgba(251,146,60,.3);white-space:nowrap;cursor:help}}
+.ec-total{{font-size:2.6rem;font-weight:800;color:var(--gold);line-height:1.1;margin:2px 0 14px}}
+.ec-total-big{{font-size:3.2rem}}
+
+.ec-rows{{display:flex;flex-direction:column}}
+.ec-row{{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:7px 2px;border-bottom:1px solid rgba(255,255,255,.045)}}
+.ec-row:last-child{{border-bottom:none}}
+.ec-row-label{{font-size:.86rem;color:var(--text)}}
+.ec-row-hint{{display:block;font-size:.68rem;color:var(--text-dim);margin-top:1px}}
+.ec-row-val{{font-size:1.05rem;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}}
+
+.ec-youth-row{{margin-bottom:14px}}
+.ec-youth-head{{display:flex;justify-content:space-between;align-items:baseline;font-size:.86rem;margin-bottom:5px}}
+.ec-youth-num{{font-weight:700;font-size:1.05rem;font-variant-numeric:tabular-nums}}
+.ec-youth-cap{{font-weight:400;font-size:.75rem;color:var(--text-dim)}}
+.ec-bar-track{{width:100%;height:10px;border-radius:5px;background:rgba(255,255,255,.06);overflow:hidden}}
+.ec-bar-fill{{height:100%;border-radius:5px}}
+.ec-bar-fill.lv-green{{background:linear-gradient(90deg,#34d399,#059669)}}
+.ec-bar-fill.lv-yellow{{background:linear-gradient(90deg,#fbbf24,#d97706)}}
+.ec-bar-fill.lv-red{{background:linear-gradient(90deg,#f87171,#dc2626)}}
+
+.ec-card-combined{{display:flex;flex-direction:column}}
+.ec-card-combined .ec-total{{margin-bottom:4px}}
+.ec-combined-note{{font-size:.8rem;color:var(--text-dim)}}
+.ec-crew-note{{font-size:.72rem;color:var(--text-dim);font-style:italic;margin-top:2px}}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <h1>Event Capacity</h1>
+  <p>Mindvalley U 2026 — Tallinn, Estonia · Headcount per week</p>
+  <div class="timestamp">Data snapshot: {now_str}</div>
+</header>
+{week_section("w1", "Week 1 · July 20 – 26")}
+{week_section("w2", "Week 2 · July 27 – August 2")}
+</div>
+</body>
+</html>"""
+
 def render_kids_teens_page(regs, kids, teens, cap):
     """Kids & Teens roster page. Two rows of two side-by-side tables:
       Week 1: [Kids | Teens]
@@ -2228,7 +2420,7 @@ if __name__ == "__main__":
         regs_2025 = None
 
     print("🧮 Computing metrics...")
-    hero, kids, teens, vip, fc, reg, threeday, cap, crew_list, vol_list, sg_data, refunds_by_tier = compute(regs)
+    hero, kids, teens, vip, fc, reg, threeday, cap, crew_list, vol_list, sg_data, refunds_by_tier, evcap = compute(regs)
     yoy = compute_yoy(regs, regs_2025)
 
     print("✍️  Writing event-dashboards/mvu-2026/index.html...")
@@ -2264,6 +2456,13 @@ if __name__ == "__main__":
     with open(sg_preview_path, "w", encoding="utf-8") as f:
         f.write(render_special_guests_page(sg_data, review=True))
     print(f"   Special Guests (review preview) -> {sg_preview_path}")
+
+    # Event Capacity page — per-week headcounts (Adult Program breakdown,
+    # Kids & Teens with capacity bars, combined Adults & Youth).
+    ec_path = "event-dashboards/mvu-2026/event-capacity.html"
+    with open(ec_path, "w", encoding="utf-8") as f:
+        f.write(render_event_capacity_page(evcap))
+    print(f"   Event capacity   -> {ec_path}")
 
     # Kids & Teens page — one card per program × week, ages ascending,
     # 'Both Weeks' attendees appear in both W1 and W2 lists.

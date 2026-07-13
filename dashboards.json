@@ -10,7 +10,7 @@
     {
       "id": "mvu-2026-event-capacity",
       "label": "Event Capacity",
-      "icon": "📊",
+      "icon": "🏭",
       "path": "event-dashboards/mvu-2026/event-capacity.html",
       "description": ""
     },

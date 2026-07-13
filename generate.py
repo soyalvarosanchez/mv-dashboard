@@ -527,6 +527,21 @@ def compute(regs):
         return results
 
     crew_list  = promo_list("MyCrewPass")
+    # Crew activated manually by ticket type (e.g. 'Crew Access') without the
+    # MyCrewPass promo — same lesson as Special Guests: ticket counts too.
+    for r in valid:
+        if "crew" in (r.get("ticketName") or "").lower() \
+           and (r.get("promoCode") or "").lower() != "mycrewpass":
+            props = r.get("properties") or {}
+            email = props.get("email", "")
+            week = get_week(r)
+            crew_list.append({
+                "name": get_attendee_name(r), "email": email,
+                "week": week if week else "Unassigned",
+                "weeks_full": get_week_full(r) or "Unassigned",
+                "is_mv": "@mindvalley" in email.lower(),
+                "ticket": r.get("ticketName", ""),
+            })
     vol_list   = promo_list(["Volunteer2Weeks", "Volunteer1Week"])
 
     # ── Special Guests: map each reg to an access type, TICKET TYPE FIRST ──

@@ -1933,12 +1933,24 @@ def render_event_capacity_page(evcap):
     ]
     ADULT_KEYS = [k for k, _, _ in ADULT_ROWS]
 
+    # VIP Party guest list: one party per week — VVIPs, First Class, VIP
+    # ticket holders and Crew (volunteers, comps, regulars and youth are out).
+    PARTY_ROWS = [
+        ("vvip", "VVIPs",       ""),
+        ("fc",   "First Class", ""),
+        ("vip",  "VIP",         ""),
+        ("crew", "Crew",        ""),
+    ]
+    PARTY_KEYS = [k for k, _, _ in PARTY_ROWS]
+
     def adults_total(w):   return sum(evcap[w][k] for k in ADULT_KEYS)
     def youth_total(w):    return evcap[w]["kids"] + evcap[w]["teens"]
+    def party_total(w):    return sum(evcap[w][k] for k in PARTY_KEYS)
 
     unass = evcap["unass"]
     unass_adults = sum(unass[k] for k in ADULT_KEYS)
     unass_youth  = unass["kids"] + unass["teens"]
+    unass_party  = sum(unass[k] for k in PARTY_KEYS)
 
     def pill(n):
         if not n: return ""
@@ -1957,11 +1969,14 @@ def render_event_capacity_page(evcap):
     def week_section(wkey, title):
         a_total = adults_total(wkey)
         y_total = youth_total(wkey)
-        rows_html = "".join(f"""
+        def rows_for(rows):
+            return "".join(f"""
       <div class="ec-row">
         <div class="ec-row-label">{label}{f'<span class="ec-row-hint">{hint}</span>' if hint else ''}</div>
         <div class="ec-row-val">{evcap[wkey][key]}</div>
-      </div>""" for key, label, hint in ADULT_ROWS)
+      </div>""" for key, label, hint in rows)
+        rows_html = rows_for(ADULT_ROWS)
+        party_rows_html = rows_for(PARTY_ROWS)
         return f"""
 <div class="ec-week-label">{title}</div>
 <div class="ec-grid">
@@ -1992,6 +2007,15 @@ def render_event_capacity_page(evcap):
     <div class="ec-combined-note">people expected at parties &amp; hub</div>
     <div class="ec-crew-note">(crew included)</div>
   </div>
+  <div class="ec-card">
+    <div class="ec-card-head">
+      <div class="ec-card-title">🥂 VIP Party</div>
+      {pill(unass_party)}
+    </div>
+    <div class="ec-total">{party_total(wkey)}</div>
+    <div class="ec-rows">{party_rows_html}
+    </div>
+  </div>
 </div>"""
 
     return f"""<!DOCTYPE html>
@@ -2011,8 +2035,9 @@ header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
 
 .ec-week-label{{font-size:1.1rem;font-weight:700;color:var(--gold);margin:8px 0 14px;text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:8px}}
 .ec-week-label::after{{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(212,168,67,.5),transparent)}}
-.ec-grid{{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:16px;margin-bottom:32px}}
-@media (max-width:900px){{.ec-grid{{grid-template-columns:1fr}}}}
+.ec-grid{{display:grid;grid-template-columns:1.25fr 1fr 1fr 1fr;gap:16px;margin-bottom:32px}}
+@media (max-width:1050px){{.ec-grid{{grid-template-columns:1fr 1fr}}}}
+@media (max-width:640px){{.ec-grid{{grid-template-columns:1fr}}}}
 
 .ec-card{{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:22px;position:relative;overflow:hidden}}
 .ec-card::before{{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold),var(--purple));border-radius:16px 16px 0 0}}

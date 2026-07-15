@@ -161,7 +161,7 @@
   <header>
     <h1>Mindvalley U 2026</h1>
     <p>Registration Dashboard — Tallinn, Estonia</p>
-    <div class="timestamp">Data snapshot: July 14, 2026 at 23:02 UTC</div>
+    <div class="timestamp">Data snapshot: July 15, 2026 at 00:53 UTC</div>
   </header>
 
   <div class="section-label">Ticket Overview</div>
@@ -169,10 +169,10 @@
     <div class="hero-card valid">
       <div class="hero-icon">🎟️</div>
       <div class="hero-label">Valid Tickets</div>
-      <div class="hero-value" data-target="1454">0</div>
+      <div class="hero-value" data-target="1455">0</div>
       <div class="hero-sub">
         <span>7d: <span class="num" data-target="99">0</span></span>
-        <span>24h: <span class="num" data-target="14">0</span></span>
+        <span>24h: <span class="num" data-target="13">0</span></span>
       </div>
     </div>
     <div class="hero-card paid">
@@ -180,8 +180,8 @@
       <div class="hero-label">Paid Tickets</div>
       <div class="hero-value" data-target="1095">0</div>
       <div class="hero-sub">
-        <span>7d: <span class="num" data-target="35">0</span></span>
-        <span>24h: <span class="num" data-target="5">0</span></span>
+        <span>7d: <span class="num" data-target="34">0</span></span>
+        <span>24h: <span class="num" data-target="3">0</span></span>
       </div>
     </div>
     <div class="hero-card refund">
@@ -214,12 +214,12 @@
       <div class="chart-totals">
         <div class="chart-total t2025">
           <div class="chart-total-label">2025 to date</div>
-          <div class="chart-total-val">881</div>
+          <div class="chart-total-val">886</div>
         </div>
         <div class="chart-total t2026">
           <div class="chart-total-label">2026 to date</div>
           <div class="chart-total-val">1095</div>
-          <div class="chart-delta up">▲ +24.3% YoY</div>
+          <div class="chart-delta up">▲ +23.6% YoY</div>
         </div>
       </div>
     </div>
@@ -475,7 +475,7 @@
   animateCounters();
 
   // Year-over-year line charts (data injected from Python)
-  const yoy = {"labels": ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"], "paid_2025": [145, 8, 19, 7, 8, 9, 35, 161, 104, 50, 221, 223], "paid_2026": [497, 10, 5, 5, 6, 22, 22, 50, 83, 117, 205, 73], "paid_2025_to_date": 881, "paid_2026_to_date": 1095, "available_2025": true};
+  const yoy = {"labels": ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"], "paid_2025": [145, 8, 19, 7, 8, 9, 35, 161, 104, 50, 221, 223], "paid_2026": [497, 10, 5, 5, 6, 22, 22, 50, 83, 117, 205, 73], "paid_2025_to_date": 886, "paid_2026_to_date": 1095, "available_2025": true};
 
   function renderLineChart(svgId, dataA, dataB, labels, available2025) {
     const svg = document.getElementById(svgId);

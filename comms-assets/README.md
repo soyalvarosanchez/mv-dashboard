@@ -9,5 +9,6 @@ The dashboard (comms-calendar.html) renders these inline in the email preview mo
 
 Keep images optimized (<500KB ideally) so the dashboard loads fast.
 
-## Expected files
-- `awards-gala.jpg` — Awards Gala photo for email #72 (Awards Gala & Afterparty)
+## Files
+- `awards-gala-mic.jpg` — acceptance speech shot (photo: Karen Harms), email #72
+- `awards-gala-group.jpg` — winners on stage (photo: All Is Amazing), email #72

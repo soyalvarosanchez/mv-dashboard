@@ -167,12 +167,21 @@ def main():
             headers={"Authorization": f"Bearer {token}"},
             timeout=30,
         )
-        got = ""
+        got, after_keys = "", set()
         if chk.ok:
-            got = ((chk.json().get("properties") or {}).get(WEEK_FIELD) or "").strip()
-        if got == new:
+            chk_props = chk.json().get("properties") or {}
+            got = (chk_props.get(WEEK_FIELD) or "").strip()
+            after_keys = set(chk_props.keys())
+        # Guard against the PUT silently dropping other form fields:
+        # compare property KEYS before vs after (never log values).
+        before_keys = set((r.get("properties") or {}).keys())
+        lost = before_keys - after_keys
+        if got == new and not lost:
             done += 1
-            print(f"✅ id {rid} · {rec_name(r)} · verified: {got!r}")
+            print(f"✅ id {rid} · {rec_name(r)} · verified: {got!r} · props {len(before_keys)}→{len(after_keys)} keys intact")
+        elif got == new and lost:
+            failed.append((rid, rec_name(r), "props-lost", sorted(lost)))
+            print(f"⚠️ id {rid} · {rec_name(r)} · week updated BUT properties lost: {sorted(lost)}")
         else:
             failed.append((rid, rec_name(r), "verify", f"expected {new!r}, got {got!r}"))
             print(f"⚠️ id {rid} · {rec_name(r)} · PUT ok but verification got {got!r}")

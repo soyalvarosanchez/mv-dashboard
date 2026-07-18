@@ -140,7 +140,7 @@ def batch_dry_run(valid):
         if len(matches) == 1:
             r = matches[0]
             ok_ids.append(str(r.get("id")))
-            print(f"{i:2d}. ✓ {name}  →  id {r.get('id')} · {r.get('ticketName')} "
+            print(f"{i:2d}. ✓ {name}  →  id {r.get('id')} · order {r.get('orderId')} · {r.get('ticketName')} "
                   f"· promo {r.get('promoCode') or '<none>'} · charge {r.get('charge')}")
         elif not matches:
             problems.append(name)

@@ -1,0 +1,58 @@
+name: Cancel Ticket
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: "Attendee email to look up"
+        required: false
+        default: ""
+      name:
+        description: "Attendee full name (fallback if no email)"
+        required: false
+        default: ""
+      ticket_id:
+        description: "Registration id to cancel (from a dry run) — required when dry_run=false"
+        required: false
+        default: ""
+      dry_run:
+        description: "Dry run (look up and print only, cancel nothing)"
+        type: choice
+        options: ["true", "false"]
+        default: "true"
+      send_email:
+        description: "Send Bizzabo's cancellation email to the attendee"
+        type: choice
+        options: ["true", "false"]
+        default: "true"
+
+jobs:
+  cancel:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Cancel ticket
+        env:
+          BIZZABO_CLIENT_ID:     ${{ secrets.BIZZABO_CLIENT_ID }}
+          BIZZABO_CLIENT_SECRET: ${{ secrets.BIZZABO_CLIENT_SECRET }}
+          BIZZABO_ACCOUNT_ID:    "129966"
+          BIZZABO_EVENT_ID:      "754649"
+          TARGET_EMAIL:          ${{ inputs.email }}
+          TARGET_NAME:           ${{ inputs.name }}
+          TICKET_ID:             ${{ inputs.ticket_id }}
+          DRY_RUN:               ${{ inputs.dry_run }}
+          SEND_EMAIL:            ${{ inputs.send_email }}
+        run: python cancel_ticket.py

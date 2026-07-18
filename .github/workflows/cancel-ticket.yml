@@ -25,6 +25,18 @@ on:
         type: choice
         options: ["true", "false"]
         default: "true"
+      names:
+        description: "BATCH: semicolon-separated full names (dry run lookup)"
+        required: false
+        default: ""
+      ticket_ids:
+        description: "BATCH: comma-separated registration ids to cancel (live)"
+        required: false
+        default: ""
+      expect_promo_prefix:
+        description: "BATCH guard: abort unless every promo starts with this (e.g. volunteer)"
+        required: false
+        default: ""
 
 jobs:
   cancel:
@@ -55,4 +67,7 @@ jobs:
           TICKET_ID:             ${{ inputs.ticket_id }}
           DRY_RUN:               ${{ inputs.dry_run }}
           SEND_EMAIL:            ${{ inputs.send_email }}
+          TARGET_NAMES:          ${{ inputs.names }}
+          TICKET_IDS:            ${{ inputs.ticket_ids }}
+          EXPECT_PROMO_PREFIX:   ${{ inputs.expect_promo_prefix }}
         run: python cancel_ticket.py

@@ -161,7 +161,7 @@
   <header>
     <h1>Mindvalley U 2026</h1>
     <p>Registration Dashboard — Tallinn, Estonia</p>
-    <div class="timestamp">Data snapshot: July 20, 2026 at 03:52 UTC</div>
+    <div class="timestamp">Data snapshot: July 20, 2026 at 06:55 UTC</div>
   </header>
 
   <div class="section-label">Ticket Overview</div>
@@ -169,19 +169,19 @@
     <div class="hero-card valid">
       <div class="hero-icon">🎟️</div>
       <div class="hero-label">Valid Tickets</div>
-      <div class="hero-value" data-target="1507">0</div>
+      <div class="hero-value" data-target="1513">0</div>
       <div class="hero-sub">
-        <span>7d: <span class="num" data-target="146">0</span></span>
-        <span>24h: <span class="num" data-target="33">0</span></span>
+        <span>7d: <span class="num" data-target="151">0</span></span>
+        <span>24h: <span class="num" data-target="38">0</span></span>
       </div>
     </div>
     <div class="hero-card paid">
       <div class="hero-icon">💳</div>
       <div class="hero-label">Paid Tickets</div>
-      <div class="hero-value" data-target="1113">0</div>
+      <div class="hero-value" data-target="1115">0</div>
       <div class="hero-sub">
-        <span>7d: <span class="num" data-target="41">0</span></span>
-        <span>24h: <span class="num" data-target="7">0</span></span>
+        <span>7d: <span class="num" data-target="43">0</span></span>
+        <span>24h: <span class="num" data-target="8">0</span></span>
       </div>
     </div>
     <div class="hero-card refund">
@@ -196,7 +196,7 @@
     <div class="hero-card unassigned">
       <div class="hero-icon">🔔</div>
       <div class="hero-label">Unassigned Tickets</div>
-      <div class="hero-value" data-target="19">0</div>
+      <div class="hero-value" data-target="21">0</div>
     </div>
   </div>
 
@@ -218,8 +218,8 @@
         </div>
         <div class="chart-total t2026">
           <div class="chart-total-label">2026 to date</div>
-          <div class="chart-total-val">1113</div>
-          <div class="chart-delta up">▲ +21.2% YoY</div>
+          <div class="chart-total-val">1115</div>
+          <div class="chart-delta up">▲ +21.5% YoY</div>
         </div>
       </div>
     </div>
@@ -387,26 +387,26 @@
     <div class="cat-card">
       <div class="cat-icon">🎫</div>
       <div class="cat-label">Regular (Adult)</div>
-      <div class="cat-value" data-target="732">0</div>
+      <div class="cat-value" data-target="734">0</div>
       <div class="cat-breakdown">
         <div class="item"><div class="item-val" data-target="547">0</div><div class="item-label">Week 1</div></div>
         <div class="item"><div class="item-val" data-target="461">0</div><div class="item-label">Week 2</div></div>
-        <div class="item"><div class="item-val" data-target="19">0</div><div class="item-label">No Week Selected</div></div>
+        <div class="item"><div class="item-val" data-target="21">0</div><div class="item-label">No Week Selected</div></div>
       </div>
     </div>
     
     <div class="cat-card">
       <div class="cat-icon">⏱️</div>
       <div class="cat-label">3 Days</div>
-      <div class="cat-value" data-target="212">0</div>
+      <div class="cat-value" data-target="214">0</div>
       <table class="td-mini">
         <thead><tr><th></th><th>W1</th><th>W2</th><th>None</th></tr></thead>
         <tbody>
         <tr>
-          <td class="td-tier">Standard<span class="td-tier-total" data-target="176">0</span></td>
+          <td class="td-tier">Standard<span class="td-tier-total" data-target="178">0</span></td>
           <td data-target="107">0</td>
           <td data-target="90">0</td>
-          <td data-target="7">0</td>
+          <td data-target="9">0</td>
         </tr>
         <tr>
           <td class="td-tier">VIP<span class="td-tier-total" data-target="34">0</span></td>
@@ -475,7 +475,7 @@
   animateCounters();
 
   // Year-over-year line charts (data injected from Python)
-  const yoy = {"labels": ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"], "paid_2025": [145, 8, 19, 7, 8, 9, 35, 161, 104, 50, 221, 223], "paid_2026": [491, 10, 5, 5, 5, 22, 21, 50, 80, 115, 203, 106], "paid_2025_to_date": 918, "paid_2026_to_date": 1113, "available_2025": true};
+  const yoy = {"labels": ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"], "paid_2025": [145, 8, 19, 7, 8, 9, 35, 161, 104, 50, 221, 223], "paid_2026": [491, 10, 5, 5, 5, 22, 21, 50, 80, 115, 203, 108], "paid_2025_to_date": 918, "paid_2026_to_date": 1115, "available_2025": true};
 
   function renderLineChart(svgId, dataA, dataB, labels, available2025) {
     const svg = document.getElementById(svgId);

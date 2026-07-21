@@ -636,8 +636,10 @@ def compute(regs):
 
     CAP_BUCKETS = ("vvip", "fc", "vip", "reg", "vol", "crew", "comps", "kids", "teens")
     evcap = {w: {b: 0 for b in CAP_BUCKETS} for w in ("w1", "w2", "unass")}
+    bucket_by_rid = {}   # registration id (str) -> capacity bucket; reused by the Check-ins page
     for r in valid:
         b = capacity_bucket(r)
+        bucket_by_rid[str(r.get("id"))] = b
         w = get_week(r)
         if w in ("Week 1", "Both Weeks"): evcap["w1"][b] += 1
         if w in ("Week 2", "Both Weeks"): evcap["w2"][b] += 1
@@ -650,7 +652,7 @@ def compute(regs):
     if _cap_leftovers:
         print(f"   ⚠️  Unclassified tickets counted as comps: {_cap_leftovers}")
 
-    return hero, kids, teens, vip, fc, reg, threeday, cap, crew_list, vol_list, sg_data, refunds_by_tier, evcap
+    return hero, kids, teens, vip, fc, reg, threeday, cap, crew_list, vol_list, sg_data, refunds_by_tier, evcap, bucket_by_rid
 
 # ── Year-over-year time series ───────────────────────────────────────────────
 def compute_yoy(regs_2026, regs_2025=None):
@@ -2083,6 +2085,301 @@ header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
 </body>
 </html>"""
 
+# ── Check-ins: wristband app feeds (Kristian's Google Sheet, hourly) ─────────
+CHECKIN_SHEET_ID  = "1H5A4kSVUCbvgcHQSLqyOLwhNbnSZAYek8D2crd9t0fo"
+CHECKIN_EVENTS_GID = "172132467"
+EVENT_W1_DAYS = [f"2026-07-{d}" for d in range(20, 27)]            # Jul 20-26
+EVENT_W2_DAYS = [f"2026-07-{d}" for d in (27, 28, 29, 30, 31)] + ["2026-08-01", "2026-08-02"]
+
+def fetch_checkin_feed():
+    """Read the two tabs of the check-in app's sheet. Best-effort: on any
+    failure returns ok=False and the dashboard build carries on — the
+    Check-ins page then renders a 'feed unavailable' notice."""
+    import csv as _csv, io
+    base = f"https://docs.google.com/spreadsheets/d/{CHECKIN_SHEET_ID}/export?format=csv"
+    try:
+        r = requests.get(base, timeout=30)
+        r.raise_for_status()
+        acts = {}
+        for row in _csv.DictReader(io.StringIO(r.text)):
+            tid = (row.get("ticketId") or "").strip()
+            if tid:
+                acts[tid] = {"status": (row.get("status") or "").strip().lower(),
+                             "at": (row.get("activated_at") or "").strip()}
+        r2 = requests.get(base + "&gid=" + CHECKIN_EVENTS_GID, timeout=30)
+        r2.raise_for_status()
+        events = []
+        for row in _csv.DictReader(io.StringIO(r2.text)):
+            events.append({"ts": (row.get("event_timestamp") or "").strip(),
+                           "event": (row.get("event") or "").strip(),
+                           "tid": (row.get("ticketId") or "").strip()})
+        print(f"   Check-in feed: {len(acts)} activation rows · {len(events)} events")
+        return {"ok": True, "activations": acts, "events": events}
+    except Exception as e:
+        print(f"   ⚠️  Check-in feed unavailable ({e}) — page will show a notice")
+        return {"ok": False, "activations": {}, "events": []}
+
+def _parse_feed_ts(s):
+    """'7/21/2026 6:25:35' (Tallinn local) -> datetime, or None."""
+    for fmt in ("%m/%d/%Y %H:%M:%S", "%m/%d/%Y %H:%M"):
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+    return None
+
+def render_checkins_page(regs, bucket_by_rid, feed):
+    """Check-ins page fed by the wristband app:
+      1. Hero — wristbands activated / valid tickets.
+      2. Category cards (activated/total): Standard · VIP · First Class ·
+         Special Guests · Kids & Teens · Volunteers & Crew.
+      3. Daily attendance (unique scan_validation people per day), grouped
+         into the event's calendar Week 1 / Week 2; today highlighted.
+      4. Client-side search: per attendee, wristband status (+when) and
+         whether they entered TODAY (+last scan time)."""
+    now_str = datetime.now(tz=timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
+    # The event runs on Tallinn time (EEST, UTC+3); the feed timestamps are local.
+    today_tallinn = (datetime.now(tz=timezone.utc) + timedelta(hours=3)).strftime("%Y-%m-%d")
+
+    valid = [r for r in regs if r.get("validity", "").lower() == "valid"]
+
+    CATS = [
+        ("standard", "Standard",          ("reg",)),
+        ("vip",      "VIP",               ("vip",)),
+        ("fc",       "First Class",       ("fc",)),
+        ("sg",       "Special Guests",    ("vvip",)),
+        ("youth",    "Kids &amp; Teens",  ("kids", "teens")),
+        ("volcrew",  "Volunteers &amp; Crew", ("vol", "crew", "comps")),
+    ]
+    bucket_to_cat = {}
+    for cid, _, buckets in CATS:
+        for b in buckets:
+            bucket_to_cat[b] = cid
+
+    acts = feed["activations"]
+
+    def is_activated(rid):
+        return acts.get(rid, {}).get("status") == "activated"
+
+    # ── per-category activated/total ──
+    cat_tot = {cid: 0 for cid, _, _ in CATS}
+    cat_act = {cid: 0 for cid, _, _ in CATS}
+    total_act = 0
+    for r in valid:
+        rid = str(r.get("id"))
+        cid = bucket_to_cat.get(bucket_by_rid.get(rid, ""), None)
+        if cid is None:
+            continue
+        cat_tot[cid] += 1
+        if is_activated(rid):
+            cat_act[cid] += 1
+            total_act += 1
+
+    # ── daily unique scanners (scan_validation only; admin scans excluded) ──
+    day_people = {}          # 'YYYY-MM-DD' -> set of rids
+    last_scan_today = {}     # rid -> 'HH:MM' of latest scan today
+    for ev in feed["events"]:
+        if ev["event"] != "scan_validation":
+            continue
+        dt = _parse_feed_ts(ev["ts"])
+        if not dt:
+            continue
+        day = dt.strftime("%Y-%m-%d")
+        day_people.setdefault(day, set()).add(ev["tid"])
+        if day == today_tallinn:
+            hhmm = dt.strftime("%H:%M")
+            if ev["tid"] not in last_scan_today or hhmm > last_scan_today[ev["tid"]]:
+                last_scan_today[ev["tid"]] = hhmm
+
+    pre_event = sorted(d for d in day_people if d < EVENT_W1_DAYS[0])
+    pre_count = len(set().union(*(day_people[d] for d in pre_event))) if pre_event else 0
+
+    def day_cell(day):
+        n = len(day_people.get(day, ()))
+        label = datetime.strptime(day, "%Y-%m-%d").strftime("%a %b %d").replace(" 0", " ")
+        is_today  = day == today_tallinn
+        is_future = day > today_tallinn
+        cls = "today" if is_today else ("future" if is_future else "")
+        val = "—" if is_future else str(n)
+        badge = '<div class="ck-day-badge">TODAY</div>' if is_today else ""
+        return f'''
+    <div class="ck-day {cls}">{badge}
+      <div class="ck-day-label">{label}</div>
+      <div class="ck-day-val">{val}</div>
+    </div>'''
+
+    w1_cells = "".join(day_cell(d) for d in EVENT_W1_DAYS)
+    w2_cells = "".join(day_cell(d) for d in EVENT_W2_DAYS)
+
+    # Today's entries broken down by category
+    today_set = day_people.get(today_tallinn, set())
+    today_by_cat = {cid: 0 for cid, _, _ in CATS}
+    for rid in today_set:
+        cid = bucket_to_cat.get(bucket_by_rid.get(rid, ""), None)
+        if cid:
+            today_by_cat[cid] += 1
+    today_cat_html = " · ".join(f"{label}: <b>{today_by_cat[cid]}</b>"
+                                for cid, label, _ in CATS if today_by_cat[cid])
+
+    # ── category cards ──
+    cat_cards = ""
+    for cid, label, _ in CATS:
+        tot, act = cat_tot[cid], cat_act[cid]
+        pct = (act / tot * 100) if tot else 0
+        cat_cards += f'''
+    <div class="ck-cat">
+      <div class="ck-cat-label">{label}</div>
+      <div class="ck-cat-val">{act}<span class="ck-cat-tot"> / {tot}</span></div>
+      <div class="ck-bar"><div class="ck-bar-fill" style="width:{pct:.1f}%"></div></div>
+      <div class="ck-cat-pct">{pct:.0f}%</div>
+    </div>'''
+
+    # ── search table rows ──
+    cat_label = {cid: label for cid, label, _ in CATS}
+    rows_html = ""
+    for r in sorted(valid, key=lambda x: get_attendee_name(x).lower()):
+        rid = str(r.get("id"))
+        cid = bucket_to_cat.get(bucket_by_rid.get(rid, ""), "")
+        name = get_attendee_name(r)
+        a = acts.get(rid)
+        if a and a.get("status") == "activated":
+            when = a.get("at", "")
+            wrist = f'<span class="ck-yes">✓</span> <span class="ck-when">{when}</span>'
+        elif a:
+            wrist = f'<span class="ck-no">✗</span> <span class="ck-when">{a.get("status","")}</span>'
+        else:
+            wrist = '<span class="ck-no">✗</span>'
+        today_cell = (f'<span class="ck-yes">✓</span> <span class="ck-when">{last_scan_today[rid]}</span>'
+                      if rid in last_scan_today else '<span class="ck-dim">—</span>')
+        rows_html += (f'<tr data-s="{name.lower()}"><td>{name}</td>'
+                      f'<td class="ck-cat-cell">{cat_label.get(cid, "")}</td>'
+                      f'<td>{wrist}</td><td>{today_cell}</td></tr>')
+
+    feed_notice = "" if feed["ok"] else '<div class="ck-feed-down">⚠️ Check-in feed unavailable right now — numbers below may be empty. The app\'s sheet could not be fetched on the last run.</div>'
+    pre_html = f'<div class="ck-pre">Pre-event scans (Jul 19): {pre_count} people</div>' if pre_count else ""
+
+    total_valid = len(valid)
+    pct_total = (total_act / total_valid * 100) if total_valid else 0
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Check-ins — MVU 2026</title>
+<style>
+*,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
+:root{{--bg:#0b0a1a;--card:#14122a;--card-border:#2a2650;--gold:#d4a843;--purple:#7c3aed;--purple-light:#a78bfa;--text:#e8e4f0;--text-dim:#9a93b0;--green:#34d399;--red:#f87171;--orange:#fb923c}}
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:32px 20px}}
+.container{{max-width:1200px;margin:0 auto}}
+header{{text-align:center;margin-bottom:30px}}
+h1{{font-size:1.9rem;font-weight:800;background:linear-gradient(135deg,var(--gold),var(--purple-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.02em}}
+header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
+.timestamp{{display:inline-block;margin-top:10px;padding:4px 14px;border-radius:20px;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);font-size:.8rem;color:var(--purple-light)}}
+.ck-feed-down{{background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.4);color:var(--red);border-radius:12px;padding:12px 16px;margin-bottom:20px;font-size:.9rem}}
+
+.ck-hero{{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:26px;text-align:center;position:relative;overflow:hidden;margin-bottom:16px}}
+.ck-hero::before{{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--green),#059669);border-radius:16px 16px 0 0}}
+.ck-hero-label{{font-size:.85rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;font-weight:600}}
+.ck-hero-val{{font-size:3.4rem;font-weight:800;color:var(--green);line-height:1.15}}
+.ck-hero-val span{{font-size:1.6rem;color:var(--text-dim);font-weight:600}}
+.ck-hero-pct{{font-size:.95rem;color:var(--text-dim);margin-top:2px}}
+
+.ck-cats{{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:8px}}
+.ck-cat{{background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:16px}}
+.ck-cat-label{{font-size:.74rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;font-weight:600}}
+.ck-cat-val{{font-size:1.7rem;font-weight:800;color:var(--text);margin:4px 0 8px}}
+.ck-cat-tot{{font-size:.95rem;color:var(--text-dim);font-weight:600}}
+.ck-bar{{width:100%;height:8px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden}}
+.ck-bar-fill{{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--green),#059669)}}
+.ck-cat-pct{{font-size:.72rem;color:var(--text-dim);margin-top:5px}}
+.ck-pre{{font-size:.75rem;color:var(--text-dim);font-style:italic;margin:4px 2px 0}}
+
+.ck-section{{font-size:1.1rem;font-weight:700;color:var(--gold);margin:28px 0 14px;text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:8px}}
+.ck-section::after{{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(212,168,67,.5),transparent)}}
+.ck-section .ck-sub{{font-size:.75rem;font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0}}
+.ck-days{{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:6px}}
+@media (max-width:800px){{.ck-days{{grid-template-columns:repeat(4,1fr)}}}}
+.ck-day{{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:12px 8px;text-align:center;position:relative}}
+.ck-day.today{{border-color:var(--gold);box-shadow:0 0 18px rgba(212,168,67,.18)}}
+.ck-day.future{{opacity:.45}}
+.ck-day-badge{{position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:var(--gold);color:#14122a;font-size:.58rem;font-weight:800;padding:1px 8px;border-radius:8px;letter-spacing:.06em}}
+.ck-day-label{{font-size:.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em}}
+.ck-day-val{{font-size:1.5rem;font-weight:800;color:var(--text);margin-top:3px}}
+.ck-day.today .ck-day-val{{color:var(--gold)}}
+.ck-today-cats{{font-size:.82rem;color:var(--text-dim);margin:6px 2px 0}}
+.ck-today-cats b{{color:var(--text)}}
+
+.ck-search{{width:100%;background:var(--card);border:1px solid var(--card-border);border-radius:12px;color:var(--text);padding:13px 16px;font-size:.95rem;margin-bottom:12px}}
+.ck-search:focus{{outline:none;border-color:var(--purple-light)}}
+.ck-table{{width:100%;border-collapse:collapse;font-size:.88rem;background:var(--card);border:1px solid var(--card-border);border-radius:12px;overflow:hidden}}
+.ck-table th{{text-align:left;padding:10px 14px;color:var(--text-dim);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02)}}
+.ck-table td{{padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.03)}}
+.ck-table tbody tr:hover td{{background:rgba(255,255,255,.02)}}
+.ck-cat-cell{{color:var(--purple-light);font-size:.8rem}}
+.ck-yes{{color:var(--green);font-weight:700}}
+.ck-no{{color:var(--red);font-weight:700}}
+.ck-dim{{color:var(--text-dim)}}
+.ck-when{{color:var(--text-dim);font-size:.78rem}}
+.ck-count{{font-size:.8rem;color:var(--text-dim);margin:8px 2px}}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <h1>Check-ins</h1>
+  <p>Mindvalley U 2026 — Tallinn, Estonia · Wristband activations &amp; daily attendance</p>
+  <div class="timestamp">Data snapshot: {now_str} · app feed refreshes hourly</div>
+</header>
+{feed_notice}
+
+<div class="ck-hero">
+  <div class="ck-hero-label">Wristbands activated</div>
+  <div class="ck-hero-val">{total_act}<span> / {total_valid} valid tickets</span></div>
+  <div class="ck-hero-pct">{pct_total:.1f}% of all valid tickets activated</div>
+</div>
+
+<div class="ck-cats">{cat_cards}
+</div>
+{pre_html}
+
+<div class="ck-section">Week 1 · July 20 – 26 <span class="ck-sub">unique people scanned in per day</span></div>
+<div class="ck-days">{w1_cells}
+</div>
+{f'<div class="ck-today-cats">Today by category — {today_cat_html}</div>' if today_cat_html and today_tallinn in set(EVENT_W1_DAYS) else ''}
+
+<div class="ck-section">Week 2 · July 27 – August 2</div>
+<div class="ck-days">{w2_cells}
+</div>
+{f'<div class="ck-today-cats">Today by category — {today_cat_html}</div>' if today_cat_html and today_tallinn in set(EVENT_W2_DAYS) else ''}
+
+<div class="ck-section">Find a person <span class="ck-sub">wristband status &amp; today's entry</span></div>
+<input class="ck-search" id="ckSearch" type="text" placeholder="Type a name… (e.g. to answer: has this person entered today?)" autocomplete="off">
+<div class="ck-count" id="ckCount"></div>
+<table class="ck-table">
+  <thead><tr><th>Name</th><th>Category</th><th>Wristband activated</th><th>Entered today</th></tr></thead>
+  <tbody id="ckBody">{rows_html}</tbody>
+</table>
+</div>
+<script>
+const inp = document.getElementById('ckSearch');
+const rows = Array.from(document.querySelectorAll('#ckBody tr'));
+const count = document.getElementById('ckCount');
+function apply() {{
+  const q = inp.value.trim().toLowerCase();
+  let shown = 0;
+  rows.forEach(tr => {{
+    const hit = !q || tr.dataset.s.includes(q);
+    tr.style.display = hit ? '' : 'none';
+    if (hit) shown++;
+  }});
+  count.textContent = q ? shown + ' match' + (shown === 1 ? '' : 'es') : '';
+}}
+inp.addEventListener('input', apply);
+apply();
+</script>
+</body>
+</html>"""
+
 def render_kids_teens_page(regs, kids, teens, cap):
     """Kids & Teens roster page. Two rows of two side-by-side tables:
       Week 1: [Kids | Teens]
@@ -2460,7 +2757,7 @@ if __name__ == "__main__":
         regs_2025 = None
 
     print("🧮 Computing metrics...")
-    hero, kids, teens, vip, fc, reg, threeday, cap, crew_list, vol_list, sg_data, refunds_by_tier, evcap = compute(regs)
+    hero, kids, teens, vip, fc, reg, threeday, cap, crew_list, vol_list, sg_data, refunds_by_tier, evcap, bucket_by_rid = compute(regs)
     yoy = compute_yoy(regs, regs_2025)
 
     print("✍️  Writing event-dashboards/mvu-2026/index.html...")
@@ -2499,6 +2796,20 @@ if __name__ == "__main__":
 
     # Event Capacity page — per-week headcounts (Adult Program breakdown,
     # Kids & Teens with capacity bars, combined Adults & Youth).
+    # Check-ins page — wristband activations + daily attendance from the
+    # check-in app's hourly sheet, joined to Bizzabo by registration id.
+    ck_feed = fetch_checkin_feed()
+    if ck_feed["ok"]:
+        _valid_ids = {str(r.get("id")) for r in regs if (r.get("validity") or "").lower() == "valid"}
+        _stale = [t for t in ck_feed["activations"] if t not in _valid_ids]
+        if _stale:
+            print(f"   ⚠️  Check-in app has {len(_stale)} ticket ids not among our valid regs "
+                  f"(cancelled/swapped?): {_stale[:8]}{'…' if len(_stale) > 8 else ''}")
+    ck_path = "event-dashboards/mvu-2026/checkins.html"
+    with open(ck_path, "w", encoding="utf-8") as f:
+        f.write(render_checkins_page(regs, bucket_by_rid, ck_feed))
+    print(f"   Check-ins        -> {ck_path}")
+
     ec_path = "event-dashboards/mvu-2026/event-capacity.html"
     with open(ec_path, "w", encoding="utf-8") as f:
         f.write(render_event_capacity_page(evcap))

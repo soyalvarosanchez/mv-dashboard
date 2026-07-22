@@ -2120,10 +2120,13 @@ def fetch_checkin_feed():
         return {"ok": False, "activations": {}, "events": []}
 
 def _parse_feed_ts(s):
-    """'7/21/2026 6:25:35' (Tallinn local) -> datetime, or None."""
+    """'7/22/2026 6:59:20' -> datetime in Tallinn local time, or None.
+    The app's sheet timestamps are UTC (verified 22 Jul: sheet said 06:59
+    while Tallinn clocks read 09:59), so we shift +3h (EEST) before any
+    day-bucketing or display."""
     for fmt in ("%m/%d/%Y %H:%M:%S", "%m/%d/%Y %H:%M"):
         try:
-            return datetime.strptime(s, fmt)
+            return datetime.strptime(s, fmt) + timedelta(hours=3)
         except ValueError:
             continue
     return None
@@ -2243,7 +2246,8 @@ def render_checkins_page(regs, bucket_by_rid, feed):
         name = get_attendee_name(r)
         a = acts.get(rid)
         if a and a.get("status") == "activated":
-            when = a.get("at", "")
+            _dt = _parse_feed_ts(a.get("at", ""))
+            when = _dt.strftime("%b %d, %H:%M") if _dt else a.get("at", "")
             wrist = f'<span class="ck-yes">✓</span> <span class="ck-when">{when}</span>'
         elif a:
             wrist = f'<span class="ck-no">✗</span> <span class="ck-when">{a.get("status","")}</span>'

@@ -8,17 +8,10 @@
       "description": "Dashboard"
     },
     {
-      "id": "mvu-2026-checkins",
-      "label": "Check-ins",
+      "id": "mvu-2026-capacity-checkins",
+      "label": "Capacity & Check-ins",
       "icon": "✅",
-      "path": "event-dashboards/mvu-2026/checkins.html",
-      "description": ""
-    },
-    {
-      "id": "mvu-2026-event-capacity",
-      "label": "Event Capacity",
-      "icon": "🏭",
-      "path": "event-dashboards/mvu-2026/event-capacity.html",
+      "path": "event-dashboards/mvu-2026/capacity-checkins.html",
       "description": ""
     },
     {

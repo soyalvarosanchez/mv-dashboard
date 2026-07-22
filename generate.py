@@ -2262,6 +2262,56 @@ def render_checkins_page(regs, bucket_by_rid, feed):
     feed_notice = "" if feed["ok"] else '<div class="ck-feed-down">⚠️ Check-in feed unavailable right now — numbers below may be empty. The app\'s sheet could not be fetched on the last run.</div>'
     pre_html = f'<div class="ck-pre">Pre-event scans (Jul 19): {pre_count} people</div>' if pre_count else ""
 
+    # ── VIP Party check-in: same guest list as the Event Capacity card ──
+    # One party per week; the section is anchored to the CURRENT event week
+    # (auto-switches to Week 2 on Jul 27) and says so explicitly — every
+    # other number on this page is whole-event, this one is week-scoped.
+    PARTY_BUCKETS = ("vvip", "fc", "vip", "crew")
+    PARTY_ROWS = [("vvip", "VVIPs"), ("fc", "First Class"), ("vip", "VIP"), ("crew", "Crew")]
+    in_week2 = today_tallinn >= EVENT_W2_DAYS[0]
+    party_week_label = "Week 2 · July 27 – August 2" if in_week2 else "Week 1 · July 20 – 26"
+    party_week_key   = "Week 2" if in_week2 else "Week 1"
+    p_tot = {b: 0 for b in PARTY_BUCKETS}
+    p_act = {b: 0 for b in PARTY_BUCKETS}
+    p_unass = 0
+    for r in valid:
+        rid = str(r.get("id"))
+        b = bucket_by_rid.get(rid, "")
+        if b not in PARTY_BUCKETS:
+            continue
+        w = get_week(r)
+        if w in (party_week_key, "Both Weeks"):
+            p_tot[b] += 1
+            if is_activated(rid):
+                p_act[b] += 1
+        elif not w:
+            p_unass += 1
+    party_total = sum(p_tot.values())
+    party_act   = sum(p_act.values())
+    party_pct   = (party_act / party_total * 100) if party_total else 0
+    party_rows_html = "".join(f'''
+    <div class="ck-party-row">
+      <div class="ck-party-label">{label}</div>
+      <div class="ck-party-val"><b>{p_act[b]}</b> / {p_tot[b]}</div>
+    </div>''' for b, label in PARTY_ROWS)
+    party_pill = (f'<span class="ec-pill" title="Party-eligible people who haven\'t selected a week yet">+{p_unass} no week selected</span>'
+                  if p_unass else "")
+    party_html = f'''
+<div class="ck-section">🥂 VIP Party check-in <span class="ck-week-badge">{party_week_label}</span> <span class="ck-sub">wristbands activated among this week's party guests — same guest list as Event Capacity</span></div>
+<div class="ck-party">
+  <div class="ck-party-hero">
+    <div>
+      <div class="ck-cat-label">Party guests checked in</div>
+      <div class="ck-cat-val" style="font-size:2.2rem">{party_act}<span class="ck-cat-tot"> / {party_total}</span></div>
+      <div class="ck-bar" style="max-width:260px"><div class="ck-bar-fill" style="width:{party_pct:.1f}%"></div></div>
+      <div class="ck-cat-pct">{party_pct:.0f}% of eligible guests have activated their wristband</div>
+    </div>
+    {party_pill}
+  </div>
+  <div class="ck-party-rows">{party_rows_html}
+  </div>
+</div>'''
+
     total_valid = len(valid)
     pct_total = (total_act / total_valid * 100) if total_valid else 0
 
@@ -2313,6 +2363,18 @@ header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
 .ck-today-cats{{font-size:.82rem;color:var(--text-dim);margin:6px 2px 0}}
 .ck-today-cats b{{color:var(--text)}}
 
+.ck-week-badge{{font-size:.72rem;font-weight:700;padding:3px 12px;border-radius:12px;background:rgba(212,168,67,.15);color:var(--gold);border:1px solid rgba(212,168,67,.4);text-transform:none;letter-spacing:.02em;white-space:nowrap}}
+.ck-party{{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:20px 22px;position:relative;overflow:hidden;display:grid;grid-template-columns:1.2fr 1fr;gap:20px;align-items:center}}
+.ck-party::before{{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold),var(--purple));border-radius:16px 16px 0 0}}
+@media (max-width:760px){{.ck-party{{grid-template-columns:1fr}}}}
+.ck-party-hero{{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}}
+.ck-party-rows{{display:flex;flex-direction:column}}
+.ck-party-row{{display:flex;justify-content:space-between;align-items:baseline;padding:7px 2px;border-bottom:1px solid rgba(255,255,255,.045)}}
+.ck-party-row:last-child{{border-bottom:none}}
+.ck-party-label{{font-size:.86rem;color:var(--text)}}
+.ck-party-val{{font-size:.95rem;color:var(--text-dim);font-variant-numeric:tabular-nums}}
+.ck-party-val b{{color:var(--green);font-size:1.05rem}}
+.ec-pill{{font-size:.68rem;font-weight:600;padding:3px 9px;border-radius:12px;background:rgba(251,146,60,.13);color:var(--orange);border:1px solid rgba(251,146,60,.3);white-space:nowrap;cursor:help}}
 .ck-search{{width:100%;background:var(--card);border:1px solid var(--card-border);border-radius:12px;color:var(--text);padding:13px 16px;font-size:.95rem;margin-bottom:12px}}
 .ck-search:focus{{outline:none;border-color:var(--purple-light)}}
 .ck-table{{width:100%;border-collapse:collapse;font-size:.88rem;background:var(--card);border:1px solid var(--card-border);border-radius:12px;overflow:hidden}}
@@ -2345,6 +2407,7 @@ header p{{color:var(--text-dim);margin-top:6px;font-size:.9rem}}
 <div class="ck-cats">{cat_cards}
 </div>
 {pre_html}
+{party_html}
 
 <div class="ck-section">Week 1 · July 20 – 26 <span class="ck-sub">unique people scanned in per day</span></div>
 <div class="ck-days">{w1_cells}

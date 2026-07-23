@@ -2,7 +2,12 @@ name: Update Dashboards
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    # Offset minutes on purpose: GitHub's cron scheduler is best-effort and
+    # drops jobs scheduled at congested times (:00/:30 are the worst). Runs
+    # at :11 and :41 get picked up far more reliably, and two extra entries
+    # give the scheduler more chances during the event.
+    - cron: '11,41 * * * *'
+    - cron: '23,53 * * * *'
   workflow_dispatch:
 
 jobs:

@@ -75,21 +75,30 @@ def main():
         if reg:
             props = reg.get("properties") or {}
             email = (props.get("email") or "").strip()
-            name = f"{(props.get('firstName') or '').strip()} {(props.get('lastName') or '').strip()}".strip()
+            first = (props.get("firstName") or "").strip()
+            last  = (props.get("lastName") or "").strip()
+            if not first and not last:
+                # fall back to the app's single-field name: first word / rest
+                parts = a["app_name"].split(None, 1)
+                first, last = (parts + ["", ""])[:2]
             if email:
                 emails.add(email.lower())
-            out_rows.append({"ticketId": tid, "name": name or a["app_name"], "email": email,
+            out_rows.append({"ticketId": tid, "first_name": first, "last_name": last,
+                             "email": email,
                              "ticket": reg.get("ticketName") or a["type"],
                              "activated_at_utc": a["activated_at_utc"]})
         else:
             orphans += 1
-            out_rows.append({"ticketId": tid, "name": a["app_name"], "email": "",
+            parts = a["app_name"].split(None, 1)
+            first, last = (parts + ["", ""])[:2]
+            out_rows.append({"ticketId": tid, "first_name": first, "last_name": last,
+                             "email": "",
                              "ticket": a["type"] + "  [NO VALID BIZZABO REG — swapped/cancelled?]",
                              "activated_at_utc": a["activated_at_utc"]})
 
-    out_rows.sort(key=lambda x: x["name"].lower())
+    out_rows.sort(key=lambda x: (x["last_name"].lower(), x["first_name"].lower()))
     with open("activated_emails.csv", "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=["ticketId", "name", "email", "ticket", "activated_at_utc"])
+        w = csv.DictWriter(f, fieldnames=["ticketId", "first_name", "last_name", "email", "ticket", "activated_at_utc"])
         w.writeheader()
         w.writerows(out_rows)
 

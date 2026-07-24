@@ -1,0 +1,37 @@
+name: Export Activated Emails
+
+on:
+  workflow_dispatch:
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Build activated-emails CSV
+        env:
+          BIZZABO_CLIENT_ID:     ${{ secrets.BIZZABO_CLIENT_ID }}
+          BIZZABO_CLIENT_SECRET: ${{ secrets.BIZZABO_CLIENT_SECRET }}
+          BIZZABO_ACCOUNT_ID:    "129966"
+          BIZZABO_EVENT_ID:      "754649"
+        run: python export_activated.py
+
+      - name: Upload as private artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: activated-emails
+          path: activated_emails.csv
+          retention-days: 3

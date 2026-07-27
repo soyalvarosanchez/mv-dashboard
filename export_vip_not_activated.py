@@ -100,10 +100,19 @@ def main():
         if str(x.get("id")) in activated_before:
             continue
         props = x.get("properties") or {}
+        first = (props.get("firstName") or "").strip()
+        last  = (props.get("lastName") or "").strip()
+        email = (props.get("email") or "").strip()
+        if not (first or last or email):
+            # unassigned ticket — fall back to the buyer (billingAddress)
+            bill = x.get("billingAddress") or {}
+            first = (bill.get("firstName") or "").strip()
+            last  = ((bill.get("lastName") or "").strip() + " (buyer — ticket unassigned)").strip()
+            email = (bill.get("email") or "").strip()
         out.append({
-            "First Name": (props.get("firstName") or "").strip(),
-            "Last Name":  (props.get("lastName") or "").strip(),
-            "Email address": (props.get("email") or "").strip(),
+            "First Name": first,
+            "Last Name":  last,
+            "Email address": email,
             "Ticket type": (x.get("ticketName") or "").strip(),
         })
     out.sort(key=lambda x: (x["Last Name"].lower(), x["First Name"].lower()))

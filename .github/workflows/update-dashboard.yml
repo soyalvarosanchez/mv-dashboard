@@ -8,6 +8,11 @@ on:
     # give the scheduler more chances during the event.
     - cron: '11,41 * * * *'
     - cron: '23,53 * * * *'
+    # GitHub kept dropping runs even at these offsets (3h gap on Jul 27
+    # morning, right through the entry rush). More entries = more chances;
+    # each run is ~25s so 8/hour is still tiny usage.
+    - cron: '5,17 * * * *'
+    - cron: '29,47 * * * *'
   workflow_dispatch:
 
 jobs:

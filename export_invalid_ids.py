@@ -53,8 +53,12 @@ def fetch_all(token):
 def main():
     r = requests.get(f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv", timeout=30)
     r.raise_for_status()
-    app_activated = {(row.get("ticketId") or "").strip()
-                     for row in csv.DictReader(io.StringIO(r.text))
+    app_rows = {}
+    for row in csv.DictReader(io.StringIO(r.text)):
+        tid = (row.get("ticketId") or "").strip()
+        if tid:
+            app_rows[tid] = row
+    app_activated = {t for t, row in app_rows.items()
                      if (row.get("status") or "").strip().lower() == "activated"}
 
     token = get_token()
@@ -74,6 +78,20 @@ def main():
             "paymentStatus": (x.get("paymentStatus") or "").strip(),
             "flag": "ALREADY_ACTIVATED_IN_APP" if rid in app_activated else "",
         })
+    # Tickets the app knows that don't exist in Bizzabo AT ALL any more
+    # (e.g. upgraded-away originals like the Keven Thibeault case) — these
+    # are invisible to the invalid list above but equally usable at the door.
+    all_ids = {str(x.get("id")) for x in regs}
+    for tid, row in app_rows.items():
+        if tid not in all_ids:
+            out.append({
+                "ticketId": tid,
+                "name": (row.get("attendee_name") or "").strip(),
+                "ticket": (row.get("type") or "").strip(),
+                "paymentStatus": "",
+                "flag": ("ORPHAN_NOT_IN_BIZZABO" +
+                         ("+ACTIVATED" if tid in app_activated else "")),
+            })
     out.sort(key=lambda x: (x["flag"] == "", x["name"].lower()))
     with open("invalid_ticket_ids.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=["ticketId", "name", "ticket", "paymentStatus", "flag"])

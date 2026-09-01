@@ -1,0 +1,14 @@
+name: Promo Impact
+on: workflow_dispatch
+jobs:
+  x:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install requests
+      - env:
+          BIZZABO_CLIENT_ID: ${{ secrets.BIZZABO_CLIENT_ID }}
+          BIZZABO_CLIENT_SECRET: ${{ secrets.BIZZABO_CLIENT_SECRET }}
+        run: python promo_impact.py

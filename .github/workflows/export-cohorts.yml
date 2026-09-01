@@ -1,0 +1,23 @@
+name: Export Cohorts
+on: workflow_dispatch
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install requests
+      - env:
+          BIZZABO_CLIENT_ID: ${{ secrets.BIZZABO_CLIENT_ID }}
+          BIZZABO_CLIENT_SECRET: ${{ secrets.BIZZABO_CLIENT_SECRET }}
+        run: python export_cohorts.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cohorts
+          path: |
+            attendance_cohorts.csv
+            volunteers_staff.csv
+          retention-days: 1

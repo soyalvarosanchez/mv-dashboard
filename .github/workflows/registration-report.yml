@@ -1,0 +1,23 @@
+name: Registration Report 2026
+
+on:
+  workflow_dispatch:
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install requests
+      - name: Build report
+        env:
+          BIZZABO_CLIENT_ID:     ${{ secrets.BIZZABO_CLIENT_ID }}
+          BIZZABO_CLIENT_SECRET: ${{ secrets.BIZZABO_CLIENT_SECRET }}
+          BIZZABO_ACCOUNT_ID:    "129966"
+          BIZZABO_EVENT_ID:      "754649"
+        run: python registration_report_2026.py

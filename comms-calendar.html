@@ -1131,7 +1131,13 @@ function renderCopy(str) {
     out += escapeHtml(str.slice(last, m.index));
     const alt = escapeHtml(m[1]);
     const url = m[2].replace(/"/g, '&quot;');
-    out += `<img src="${url}" alt="${alt}" style="display:block;max-width:100%;border-radius:8px;margin:12px 0;border:1px solid var(--card-border)" loading="lazy">`;
+    // Logos at the size they have in the real emails; other images at most email width
+    const isWings = /wings/i.test(url);
+    const isLogo = isWings || /logo/i.test(url);
+    const style = isLogo
+      ? `display:block;width:${isWings ? 64 : 180}px;max-width:60%;margin:12px auto`
+      : 'display:block;max-width:min(100%,560px);border-radius:8px;margin:12px 0;border:1px solid var(--card-border)';
+    out += `<img src="${url}" alt="${alt}" style="${style}" loading="lazy">`;
     last = m.index + m[0].length;
   }
   out += escapeHtml(str.slice(last));
